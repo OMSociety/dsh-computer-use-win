@@ -63,7 +63,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 > 在已打开的计算器中计算 25 × 4，并读取结果。
 
-> 找到网易云音乐窗口。若无障碍树看不到搜索框，就读取实际可见文字定位，搜索“晴天”，确认结果页出现“周杰伦”。
+> 打开网易云音乐，搜索“晴天”，确认结果页出现“周杰伦”。若无障碍树看不到搜索框，就用 OCR 定位可见文字后继续操作。
 
 一次可靠的操作通常是：**观察目标 → 定位 → 执行动作 → 确认结果**。
 
@@ -72,6 +72,14 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 ### 实际演示
 
 以下截图来自实际桌面操作。
+
+#### 网易云音乐：搜索《晴天》
+
+**打开应用 → OCR 定位搜索框 → 输入“晴天” → 确认搜索结果。**
+
+网易云的默认无障碍树只暴露少量节点，OCR 让插件仍能定位搜索入口并完成操作。0.3.0 在独立 Windows 虚拟机中完成了两次冷启动搜索，结果页可见“晴天”和“周杰伦”。
+
+![网易云音乐搜索晴天的实际结果页，显示搜索词晴天和歌手周杰伦](assets/netease-qingtian-search.png)
 
 | 文件资源管理器 | 文档输入 | 计算器 |
 |---|---|---|
@@ -271,7 +279,7 @@ After installation, give the agent a task like these. Results depend on the targ
 
 > Calculate 25 × 4 in the open Calculator window and read the result.
 
-> Find the NetEase Cloud Music window. If its accessibility tree cannot expose the search field, locate it using visible text, search for “晴天”, and confirm “周杰伦” on the results page.
+> Open NetEase Cloud Music, search for “晴天” (Qing Tian), and confirm “周杰伦” (Jay Chou) on the results page. If the accessibility tree does not expose the search field, use OCR to locate visible text and continue.
 
 A typical workflow is **observe the target → locate → act → verify**.
 
@@ -280,6 +288,14 @@ A typical workflow is **observe the target → locate → act → verify**.
 ### See it in action
 
 These screenshots come from actual desktop operations.
+
+#### NetEase Cloud Music: search for “晴天”
+
+**Open the app → locate the search field with OCR → type “晴天” → verify the results.**
+
+NetEase's default accessibility tree exposes only a few nodes. OCR lets the plugin locate the search entry and complete the task. Version 0.3.0 completed two cold-start searches in an independent Windows VM, with “晴天” and “周杰伦” visible on the results page.
+
+![Actual NetEase Cloud Music search results showing 晴天 and artist 周杰伦](assets/netease-qingtian-search.png)
 
 | File Explorer | Document input | Calculator |
 |---|---|---|
