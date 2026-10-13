@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-10-14
+
+- 前台窗口完全在虚拟桌面范围内且无遮挡时，截图/OCR 优先采集真实屏幕像素，避免网易云 CEF 的 PrintWindow 返回成功但图片缺失下半部分。采集前后检查前台 HWND、窗口层级和位置；不主动激活窗口。
+- 后台或有遮挡的窗口仍使用 PrintWindow/WGC 和带遮挡标记的屏幕回退。失败的 PrintWindow 位图及时释放。
+- 中英文 README 使用同页语言导航，替换网易云搜索《晴天》的完整实测截图；安装、工具列表、观察方式和真实任务验证默认展开。
+- Prefer a checked screen crop for fully visible, unobstructed foreground windows. Verify focus, Z order and geometry around capture; preserve background capture fallbacks and explicit occlusion metadata. Add screen-crop eligibility regressions.
+
 ## 0.3.0 — 2026-10-14
 
 - Add native `screenshot` and UIA-independent OCR capture; make OCR hit-testing opt-in and support MCP image output.

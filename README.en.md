@@ -27,7 +27,7 @@ dsh plugin --profile web add dsh-computer-use-win
 
 Restart `dsh web`; Desktop users should reload their host and MCP worker. Replace `web` with **the profile your host actually uses**, then run `health` to check the connection. DSH exposes the tools as `mcp__wincu__windows_computer_use_*`.
 
-<details>
+<details open>
 <summary>Other installation options and upgrade checks</summary>
 
 Install from GitHub:
@@ -77,7 +77,7 @@ These screenshots come from actual desktop operations.
 
 **Open the app → locate the search field with OCR → type “晴天” → verify the results.**
 
-NetEase's default accessibility tree exposes only a few nodes. OCR lets the plugin locate the search entry and complete the task. Version 0.3.0 completed two cold-start searches in an independent Windows VM, with “晴天” and “周杰伦” visible on the results page.
+NetEase's default accessibility tree exposes only a few nodes. OCR lets the plugin locate the search entry and complete the task. Version 0.3.1 completed two cold-start searches in an independent Windows VM, with “晴天” and “周杰伦” visible on the results page.
 
 ![Actual NetEase Cloud Music search results showing 晴天 and artist 周杰伦](assets/netease-qingtian-search.png)
 
@@ -86,12 +86,12 @@ NetEase's default accessibility tree exposes only a few nodes. OCR lets the plug
 | ![File selection using find and invoke](assets/screenshot-1.png) | ![Text input and content read-back](assets/screenshot-2.png) | ![Calculator result of 25 times 4 equals 100](assets/screenshot-3.png) |
 | Query and select a file | Write, then read back | Locate buttons and read the result |
 
-<details>
-<summary>0.3.0 task validation in a real application</summary>
+<details open>
+<summary>0.3.1 task validation in a real application</summary>
 
 An owned Windows 11 Home China 22621.4112 VM, PowerShell 5.1.22621.4111, 2560×1600 display, 150% DPI and NetEase 3.1.41.205529 completed two cold-start searches: OCR location → click → type “晴天” → Enter → observe “单曲” and “周杰伦” in the final OCR/screenshot. Clipboard text, bitmap and file-drop contents were restored; every before/after native responsiveness probe passed.
 
-The task used the official Cordis / ToolRuntime / MCP bridge programmatically, without a model. Playback was not tested, and the app freeze reported in [#18](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/18) remains unreproduced. See the [0.3.0 release](https://github.com/Yu-tao-Li/dsh-computer-use-win/releases/tag/v0.3.0) and [test notes](docs/dev-notes.md) for evidence.
+The task used the official Cordis / ToolRuntime / MCP bridge programmatically, without a model. Playback was not tested, and the app freeze reported in [#18](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/18) remains unreproduced. See the [0.3.1 release](https://github.com/Yu-tao-Li/dsh-computer-use-win/releases/tag/v0.3.1) and [test notes](docs/dev-notes.md) for evidence.
 
 </details>
 
@@ -99,7 +99,7 @@ The task used the official Cordis / ToolRuntime / MCP bridge programmatically, w
 
 Start with `health`, `list_windows`, and `find` / `snapshot`, then choose an action for the target. Short names below map to `windows_computer_use_<name>`; the DSH bridge adds `mcp__wincu__`.
 
-<details>
+<details open>
 <summary>All 23 tools</summary>
 
 | Purpose | Tools |
@@ -118,7 +118,7 @@ Tools supporting window targeting accept `windowTitle`, `processId` or `nativeWi
 
 </details>
 
-<details>
+<details open>
 <summary>When should I use UIA, OCR or screenshots?</summary>
 
 | Current observation | Next step |
@@ -133,7 +133,7 @@ Empty sparse (≤20 nodes, a heuristic) or incomplete UIA searches can automatic
 
 OCR candidates carry `source:"ocr"` and physical screen coordinates, without invented UIA IDs. Default OCR and standalone screenshots skip UIA. Explicit `resolveControl:true` requests a UIA point lookup, whose result may be a whole document. `ocr(includeScreenshot:true)` also returns MCP image content.
 
-Capture tries PrintWindow → Windows.Graphics.Capture → screen-region fallback, flagging possible occlusion. Map a scaled image point with `screen coordinate = bounds origin + image coordinate / imageScale`.
+An unobstructed foreground window uses actual screen pixels, with window geometry and occlusion checked before and after capture. Other cases try PrintWindow → Windows.Graphics.Capture → screen region. Screen-region captures use `occludedPossible` to distinguish a checked clear crop from a potentially covered fallback. Map a scaled image point with `screen coordinate = bounds origin + image coordinate / imageScale`.
 
 </details>
 
@@ -243,7 +243,7 @@ dsh plugin --profile web add dsh-computer-use-win
 
 重启 `dsh web`；DSH Desktop 用户重新加载对应宿主和 MCP worker。将 `web` 换成**实际使用的 profile**，再运行 `health` 检查连接。工具在 DSH 中显示为 `mcp__wincu__windows_computer_use_*`。
 
-<details>
+<details open>
 <summary>其他安装方式与升级检查</summary>
 
 从 GitHub 安装：
@@ -293,7 +293,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 **打开应用 → OCR 定位搜索框 → 输入“晴天” → 确认搜索结果。**
 
-网易云的默认无障碍树只暴露少量节点，OCR 让插件仍能定位搜索入口并完成操作。0.3.0 在独立 Windows 虚拟机中完成了两次冷启动搜索，结果页可见“晴天”和“周杰伦”。
+网易云的默认无障碍树只暴露少量节点，OCR 让插件仍能定位搜索入口并完成操作。0.3.1 在独立 Windows 虚拟机中完成了两次冷启动搜索，结果页可见“晴天”和“周杰伦”。
 
 ![网易云音乐搜索晴天的实际结果页，显示搜索词晴天和歌手周杰伦](assets/netease-qingtian-search.png)
 
@@ -302,12 +302,12 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 | ![通过 find 与 invoke 选中文件](assets/screenshot-1.png) | ![文本输入与内容回读](assets/screenshot-2.png) | ![计算器显示 25 乘 4 的结果 100](assets/screenshot-3.png) |
 | 查询并选择文件 | 写入后读取内容 | 定位按钮并读取结果 |
 
-<details>
-<summary>0.3.0 的真实任务验证</summary>
+<details open>
+<summary>0.3.1 的真实任务验证</summary>
 
 在独立 Windows 11 家庭中文版 22621.4112 虚拟机中，使用 PowerShell 5.1.22621.4111、2560×1600、150% DPI 和网易云 3.1.41.205529，完成两次冷启动搜索：OCR 定位 → 点击 → 输入“晴天” → 回车 → 在最终 OCR/截图中确认“单曲”和“周杰伦”。文本、图片及文件列表剪贴板内容均恢复，所有测前/测后原生响应探测通过。
 
-该测试通过官方 Cordis / ToolRuntime / MCP bridge 程序化执行，没有模型参与，未验证播放；[#18](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/18) 中报告的应用卡死仍未复现。更多证据见 [0.3.0 发布说明](https://github.com/Yu-tao-Li/dsh-computer-use-win/releases/tag/v0.3.0) 和 [测试记录](docs/dev-notes.md)。
+该测试通过官方 Cordis / ToolRuntime / MCP bridge 程序化执行，没有模型参与，未验证播放；[#18](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/18) 中报告的应用卡死仍未复现。更多证据见 [0.3.1 发布说明](https://github.com/Yu-tao-Li/dsh-computer-use-win/releases/tag/v0.3.1) 和 [测试记录](docs/dev-notes.md)。
 
 </details>
 
@@ -315,7 +315,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 通常从 `health`、`list_windows`、`find` / `snapshot` 开始，再按目标选择动作。下表使用工具短名；完整 MCP 名称为 `windows_computer_use_<短名>`，DSH bridge 再加 `mcp__wincu__`。
 
-<details>
+<details open>
 <summary>查看全部 23 个工具</summary>
 
 | 用途 | 工具 |
@@ -334,7 +334,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 </details>
 
-<details>
+<details open>
 <summary>UIA、OCR 与截图应该怎样选择？</summary>
 
 | 当前观察 | 下一步 |
@@ -349,7 +349,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 OCR 候选带 `source:"ocr"` 和物理屏幕坐标，不提供伪造的 UIA ID。默认 OCR 和独立截图跳过 UIA；`resolveControl:true` 才执行 UIA 点查询，其结果可能是整页。`ocr(includeScreenshot:true)` 同时返回 MCP 图片。
 
-截图按 PrintWindow → Windows.Graphics.Capture → 屏幕区域回退，可能被遮挡时带 `occludedPossible`。缩放图片中的点映射为：`屏幕坐标 = bounds 原点 + 图片坐标 / imageScale`。
+前台且无遮挡的窗口优先采集真实屏幕内容，采集前后检查窗口位置和遮挡；其他情况按 PrintWindow → Windows.Graphics.Capture → 屏幕区域回退。屏幕区域采集用 `occludedPossible` 区分已检查无遮挡和可能被覆盖的情况。缩放图片中的点映射为：`屏幕坐标 = bounds 原点 + 图片坐标 / imageScale`。
 
 </details>
 

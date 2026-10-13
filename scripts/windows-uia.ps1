@@ -1614,7 +1614,7 @@ function Set-ElementValue {
 }
 
 # ============================================================================
-# Screenshot: window-crop (PrintWindow -> screen-region fallback) + downscale
+# Screenshot: unobstructed foreground screen crop, otherwise window capture.
 # ============================================================================
 
 function Get-ExtendedFrameBounds {
@@ -1629,6 +1629,29 @@ function Get-ExtendedFrameBounds {
   return [ordered]@{ x = $r.left; y = $r.top; width = $w; height = $h }
 }
 
+function Test-WindowScreenCapture {
+  param([long]$Hwnd, [object]$Bounds, [object]$VirtualScreen)
+  # EnumWindows is in Z order. Be conservative about overlays, including
+  # same-process popups: a screen crop is usable only with no overlap above it.
+  if ($null -eq $Bounds -or $Bounds.width -le 0 -or $Bounds.height -le 0) { return $false }
+  if ([WindowsComputerUseNative]::GetForegroundWindow().ToInt64() -ne $Hwnd) { return $false }
+  if ($Bounds.x -lt $VirtualScreen.Left -or $Bounds.y -lt $VirtualScreen.Top -or
+      $Bounds.x + $Bounds.width -gt $VirtualScreen.Right -or
+      $Bounds.y + $Bounds.height -gt $VirtualScreen.Bottom) { return $false }
+  foreach ($handle in [WindowsComputerUseNative]::TopLevelWindows()) {
+    if ($handle.ToInt64() -eq $Hwnd) {
+      return ([WindowsComputerUseNative]::IsWindowVisible($handle) -and -not [WindowsComputerUseNative]::IsIconic($handle))
+    }
+    if (-not [WindowsComputerUseNative]::IsWindowVisible($handle) -or [WindowsComputerUseNative]::IsIconic($handle)) { continue }
+    $other = New-Object WindowsComputerUseNative+RECT
+    # Unknown geometry must not be treated as proof that the crop is clear.
+    if (-not [WindowsComputerUseNative]::GetWindowRect($handle, [ref]$other)) { return $false }
+    if ($other.right -gt $Bounds.x -and $other.left -lt $Bounds.x + $Bounds.width -and
+        $other.bottom -gt $Bounds.y -and $other.top -lt $Bounds.y + $Bounds.height) { return $false }
+  }
+  return $false
+}
+
 function Try-PrintWindowCapture {
   # PrintWindow renders the window's own surface even when it is not the
   # foreground window. DirectComposition-backed surfaces (UWP/WinUI) can come
@@ -1638,6 +1661,7 @@ function Try-PrintWindowCapture {
   if ($Width -le 0 -or $Height -le 0) { return $null }
   $bmp = New-Object System.Drawing.Bitmap $Width, $Height
   $g = [System.Drawing.Graphics]::FromImage($bmp)
+  $accepted = $false
   try {
     $hdc = $g.GetHdc()
     try {
@@ -1655,9 +1679,11 @@ function Try-PrintWindowCapture {
       if (-not $allDark) { break }
     }
     if ($allDark) { return $null }
+    $accepted = $true
     return $bmp
   } finally {
     $g.Dispose()
+    if (-not $accepted) { $bmp.Dispose() }
   }
 }
 
@@ -1682,9 +1708,31 @@ function Capture-Screenshot {
     if ($null -eq $rect) { $rect = Convert-Rect (Invoke-Safe { $WindowElement.Current.BoundingRectangle } $null) }
 
     if ($null -ne $rect -and $hwnd -and $hwnd -ne 0) {
-      $bmp = Invoke-Safe { Try-PrintWindowCapture -Hwnd $hwnd -Width $rect.width -Height $rect.height } $null
+      # PrintWindow may return success with a partial Chromium/CEF surface.
+      # For an unobstructed foreground window, read the actual desktop pixels.
+      # Recheck Z order, focus and geometry after the copy before accepting it.
+      if (Invoke-Safe { Test-WindowScreenCapture -Hwnd $hwnd -Bounds $rect -VirtualScreen $vs } $false) {
+        $screen = $null
+        try {
+          $screen = New-Object System.Drawing.Bitmap $rect.width, $rect.height
+          $sg = [System.Drawing.Graphics]::FromImage($screen)
+          try { $sg.CopyFromScreen($rect.x, $rect.y, 0, 0, $screen.Size) } finally { $sg.Dispose() }
+          $after = Get-ExtendedFrameBounds -Hwnd $hwnd
+          if ($null -ne $after -and $after.x -eq $rect.x -and $after.y -eq $rect.y -and
+              $after.width -eq $rect.width -and $after.height -eq $rect.height -and
+              (Test-WindowScreenCapture -Hwnd $hwnd -Bounds $rect -VirtualScreen $vs)) {
+            $bmp = $screen; $screen = $null; $method = "screen-region"
+          }
+        } catch {
+          # The native window capture chain remains available after a race or
+          # an unavailable desktop surface; no focus change is requested here.
+        } finally {
+          if ($null -ne $screen) { $screen.Dispose() }
+        }
+      }
+      if ($null -eq $bmp) { $bmp = Invoke-Safe { Try-PrintWindowCapture -Hwnd $hwnd -Width $rect.width -Height $rect.height } $null }
       if ($null -ne $bmp) {
-        $method = "printwindow"
+        if ($method -ne "screen-region") { $method = "printwindow" }
         $bx = $rect.x; $by = $rect.y; $bw = $rect.width; $bh = $rect.height
       } else {
         # PrintWindow came back black/failed (UWP/WinUI/DirectComposition).
@@ -1771,7 +1819,7 @@ function Capture-Screenshot {
     bounds = [ordered]@{ x = $bx; y = $by; width = $bw; height = $bh }
     imageScale = [Math]::Round($scale, 4)
   }
-  if ($occludedPossible) { $meta["occludedPossible"] = $true }
+  if ($method -eq "screen-region") { $meta["occludedPossible"] = $occludedPossible }
   if ($windowCaptureFailed) { $meta["windowCaptureFailed"] = $true }
   if ($scale -ne 1.0) {
     $meta["imageScale"] = [Math]::Round($scale, 4)

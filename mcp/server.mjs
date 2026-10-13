@@ -133,7 +133,7 @@ const tools = [
         captureWindow: {
           type: "boolean",
           default: false,
-          description: "Capture only the target (or foreground) window instead of the whole virtual screen. Uses PrintWindow when supported (works for non-foreground windows) and falls back to the on-screen region (flagged occludedPossible). Much smaller image."
+          description: "Capture only the target (or foreground) window instead of the whole virtual screen. An unobstructed foreground window uses a checked screen crop; other windows use PrintWindow/WGC, then a screen fallback flagged occludedPossible. Much smaller image."
         },
         maxWidth: {
           type: "integer",

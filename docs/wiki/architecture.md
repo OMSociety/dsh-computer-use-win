@@ -6,7 +6,7 @@ DSH ToolRuntime calls the official MCP bridge, which starts mcp/server.mjs in No
 
 UIA trees use cached properties, a node cap, a depth cap and a traversal time budget. One synchronous provider call can still block. The server watchdog allows the budget plus 10 seconds, retires a stuck worker, and may obtain a native screenshot from a replacement. The response preserves explicit failure; an image is not a successful accessibility tree.
 
-Native window enumeration, screenshot, default OCR, coordinate targeting and window management do not resolve UIA elements. PrintWindow, Windows.Graphics.Capture and a flagged screen-region fallback capture rendered pixels. These capture APIs have their own watchdog; UIA independence is not a guarantee that every capture API is interruptible.
+Native window enumeration, screenshot, default OCR, coordinate targeting and window management do not resolve UIA elements. Fully on-screen, unobstructed foreground windows use a screen crop, with foreground HWND, Z order and geometry checked before and after capture. Other windows use PrintWindow, Windows.Graphics.Capture and a flagged screen-region fallback. These capture APIs have their own watchdog; UIA independence is not a guarantee that every capture API is interruptible.
 
 Empty sparse/incomplete find results can attach OCR. OCR candidates have source:ocr, recognized text and screen-space bounds. Literal OCR text does not prove a control role. Explicit resolveControl requests a UIA hit-test, whose result may be a whole document. Screenshot image pixels map to screen = bounds origin + image / imageScale.
 
