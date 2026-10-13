@@ -9,10 +9,10 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
 using System.Threading;
-namespace System.Windows {
+namespace Fixture {
   public struct Rect { public double X,Y,Width,Height; public bool IsEmpty {get {return false;}} }
 }
-namespace System.Windows.Automation {
+namespace Fixture.Automation {
   public class AutomationProperty { public string Name; public AutomationProperty(string n) {Name=n;} }
   public class AutomationPattern { public string Name; public AutomationPattern(string n) {Name=n;} }
   public enum TreeScope {Element=1, Children=2, Descendants=4, Subtree=7}
@@ -43,7 +43,7 @@ namespace System.Windows.Automation {
       public string Name="Fixture node", AutomationId="fixture", ClassName="Fixture", LocalizedControlType="button";
       public ControlType ControlType=new ControlType(); public int ProcessId=4242, NativeWindowHandle=42;
       public bool IsEnabled=true, IsOffscreen=false, HasKeyboardFocus=false;
-      public System.Windows.Rect BoundingRectangle=new System.Windows.Rect {X=1,Y=2,Width=30,Height=40};
+      public Fixture.Rect BoundingRectangle=new Fixture.Rect {X=1,Y=2,Width=30,Height=40};
     }
     public static int CurrentReads, RuntimeCalls, FindCalls, CacheBuilds, FirstCalls, SiblingCalls, DelayMs, FailAtNavigation;
     public static bool FailCache;
@@ -80,7 +80,7 @@ namespace System.Windows.Automation {
 $names = @('Get-Prop','Get-ViewMode','Get-DetailLevel','Get-ViewCondition','Invoke-Safe','Convert-Rect','Get-ControlTypeName','Get-Patterns','Get-ValueText','New-ElementCacheRequest','Convert-ElementInfo','Test-TreeBudget','Get-Children','Convert-Tree','Element-Matches','Search-Tree','Get-TreeResult','Invoke-Action')
 foreach ($name in $names) {
   $definition = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true)
-  if ($null -ne $definition) { . ([scriptblock]::Create($definition.Extent.Text)) }
+  if ($null -ne $definition) { . ([scriptblock]::Create($definition.Extent.Text.Replace('System.Windows','Fixture'))) }
 }
 function Get-ScopeRoot {param($Scope,$InputObject) return $script:Root}
 function Update-WindowCache {param($Element)}
@@ -93,53 +93,53 @@ function Resolve-Element {param($ElementId,$InputObject) return $script:Root}
 function Set-WindowForeground {param($Element) return $script:Activated}
 function Assert-Equal {param($Actual,$Expected,[string]$Label) if ($Actual -ne $Expected) {throw "${Label}: expected=$Expected actual=$Actual"}}
 function Reset-Fixture {
-  [System.Windows.Automation.AutomationElement]::Reset()
-  $script:Root = New-Object System.Windows.Automation.AutomationElement 1
+  [Fixture.Automation.AutomationElement]::Reset()
+  $script:Root = New-Object Fixture.Automation.AutomationElement 1
   $script:Responsive=$true; $script:Activated=$false; $script:Resolutions=0
 }
 Reset-Fixture
-for ($i=2;$i -le 1002;$i++) { $script:Root.Add((New-Object System.Windows.Automation.AutomationElement $i)) }
+for ($i=2;$i -le 1002;$i++) { $script:Root.Add((New-Object Fixture.Automation.AutomationElement $i)) }
 if ($Legacy) {
   $count=0
   $null=Convert-Tree -Element $script:Root -Path active -Depth 0 -MaxDepth 1 -Count ([ref]$count) -MaxNodes 10
-  [ordered]@{nodeCount=$count;currentPropertyReads=[System.Windows.Automation.AutomationElement]::CurrentReads;runtimeIdCalls=[System.Windows.Automation.AutomationElement]::RuntimeCalls;findAllCalls=[System.Windows.Automation.AutomationElement]::FindCalls} | ConvertTo-Json -Compress
+  [ordered]@{nodeCount=$count;currentPropertyReads=[Fixture.Automation.AutomationElement]::CurrentReads;runtimeIdCalls=[Fixture.Automation.AutomationElement]::RuntimeCalls;findAllCalls=[Fixture.Automation.AutomationElement]::FindCalls} | ConvertTo-Json -Compress
   exit
 }
 $result=Get-TreeResult active_window 1 10 ([pscustomobject]@{})
 Assert-Equal $result.nodeCount 10 'Wide tree node cap'
 Assert-Equal $result.truncationReason maxNodes 'Node truncation reason'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::CacheBuilds) 10 'No cache built beyond node cap'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::CurrentReads) 0 'No live property/pattern reads'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::RuntimeCalls) 0 'Cached RuntimeId'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::FindCalls) 0 'No eager sibling/subtree FindAll'
+Assert-Equal ([Fixture.Automation.AutomationElement]::CacheBuilds) 10 'No cache built beyond node cap'
+Assert-Equal ([Fixture.Automation.AutomationElement]::CurrentReads) 0 'No live property/pattern reads'
+Assert-Equal ([Fixture.Automation.AutomationElement]::RuntimeCalls) 0 'Cached RuntimeId'
+Assert-Equal ([Fixture.Automation.AutomationElement]::FindCalls) 0 'No eager sibling/subtree FindAll'
 Assert-Equal $result.tree.children[0].id 'uia:rt:42-2' 'Stable runtime ids'
 Assert-Equal $script:Root.Request.TreeScope Element 'Cache only one element'
 Assert-Equal $script:Root.Request.Patterns.Count 0 'Compact requests no patterns'
 Reset-Fixture
-$child=New-Object System.Windows.Automation.AutomationElement 2
-$child.Add((New-Object System.Windows.Automation.AutomationElement 3));$script:Root.Add($child)
+$child=New-Object Fixture.Automation.AutomationElement 2
+$child.Add((New-Object Fixture.Automation.AutomationElement 3));$script:Root.Add($child)
 $result=Get-TreeResult active_window 0 100 ([pscustomobject]@{})
 Assert-Equal $result.nodeCount 1 'Depth zero only root'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::FirstCalls) 0 'No navigation beyond depth cap'
+Assert-Equal ([Fixture.Automation.AutomationElement]::FirstCalls) 0 'No navigation beyond depth cap'
 $result=Get-TreeResult active_window 3 100 ([pscustomobject]@{detailLevel='full'})
 Assert-Equal $result.nodeCount 3 'Deep tree traversal'
 Assert-Equal $result.tree.value 'cached value' 'Full cached value'
 Assert-Equal ($result.tree.patterns -join ',') 'Invoke,Value' 'Full supported cached patterns'
 Assert-Equal $script:Root.Request.Patterns.Count 6 'Full batches patterns'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::CurrentReads) 0 'Full has no live reads'
+Assert-Equal ([Fixture.Automation.AutomationElement]::CurrentReads) 0 'Full has no live reads'
 Reset-Fixture
-$script:Root.Add((New-Object System.Windows.Automation.AutomationElement 2))
-[System.Windows.Automation.AutomationElement]::DelayMs=150
+$script:Root.Add((New-Object Fixture.Automation.AutomationElement 2))
+[Fixture.Automation.AutomationElement]::DelayMs=150
 $result=Get-TreeResult active_window 3 100 ([pscustomobject]@{treeTimeoutMs=100})
 Assert-Equal $result.truncationReason timeBudget 'Slow provider partial tree'
 Assert-Equal $result.nodeCount 1 'No node read after deadline'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::SiblingCalls) 0 'No sibling fetched after deadline'
+Assert-Equal ([Fixture.Automation.AutomationElement]::SiblingCalls) 0 'No sibling fetched after deadline'
 if (-not $result.warning) {throw 'Time budget needs warning'}
 Reset-Fixture
 $script:Responsive=$false
 $result=Get-TreeResult active_window 3 100 ([pscustomobject]@{})
 Assert-Equal $result.truncationReason targetUnresponsive 'Hung window rejected'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::CacheBuilds) 0 'Hung window never enters UIA'
+Assert-Equal ([Fixture.Automation.AutomationElement]::CacheBuilds) 0 'Hung window never enters UIA'
 $result=Invoke-Action activate_window ([pscustomobject]@{nativeWindowHandle=42})
 Assert-Equal $result.activated $false 'Hung window activation skipped'
 Assert-Equal $result.targetResponsive $false 'Hung window diagnostic'
@@ -160,18 +160,18 @@ Assert-Equal $result.element.Contains('patterns') $false 'element_info defaults 
 $result=Invoke-Action element_info ([pscustomobject]@{elementId='uia:active';detailLevel='full'})
 Assert-Equal $result.element.value 'cached value' 'element_info explicit full'
 Reset-Fixture
-[System.Windows.Automation.AutomationElement]::FailCache=$true
+[Fixture.Automation.AutomationElement]::FailCache=$true
 $result=Get-TreeResult active_window 3 100 ([pscustomobject]@{})
 Assert-Equal $result.truncationReason providerError 'Root provider failure disclosed'
 if (-not $result.providerError) {throw 'Missing provider error'}
 Reset-Fixture
-$script:Root.Add((New-Object System.Windows.Automation.AutomationElement 2))
-[System.Windows.Automation.AutomationElement]::FailAtNavigation=2
+$script:Root.Add((New-Object Fixture.Automation.AutomationElement 2))
+[Fixture.Automation.AutomationElement]::FailAtNavigation=2
 $result=Get-TreeResult active_window 3 100 ([pscustomobject]@{})
 Assert-Equal $result.truncationReason providerError 'Navigation provider failure disclosed'
 Assert-Equal $result.nodeCount 2 'Provider failure preserves already read nodes'
-[System.Windows.Automation.AutomationElement]::FirstCalls=0
-[System.Windows.Automation.AutomationElement]::SiblingCalls=0
+[Fixture.Automation.AutomationElement]::FirstCalls=0
+[Fixture.Automation.AutomationElement]::SiblingCalls=0
 $result=Invoke-Action find ([pscustomobject]@{query='cached value';treeTimeoutMs=1000})
 Assert-Equal $result.results.Count 2 'Find still matches cached value text'
 Assert-Equal $result.treeTimeoutMs 1000 'Find forwards budget'

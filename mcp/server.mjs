@@ -178,7 +178,7 @@ const tools = [
   },
   {
     name: "windows_computer_use_find",
-    description: "Find elements by name, automation id, class name, value text, or control type.",
+    description: "Find UIA elements by name, automation id, class, value or type. When UIA is sparse or incomplete and no match is found, automatically read visible text with OCR. OCR candidates have SCREEN coordinates and source:'ocr', not UIA element ids. If the literal query misses, inspect ocr.lines and reformulate using the visible text (a search box may say '大家都在搜').",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -190,6 +190,7 @@ const tools = [
         ...treeViewProperties,
         ...treeBudgetProperties,
         controlType: { type: "string" },
+        ocrFallback: { type: "boolean", default: true, description: "Use OCR after an empty sparse/incomplete UIA search. Disable for UIA-only diagnostics. No input is sent." },
         maxDepth: { type: "integer", minimum: 0, maximum: 12, default: 8 },
         maxNodes: { type: "integer", minimum: 1, maximum: 5000, default: 1200 },
         maxResults: { type: "integer", minimum: 1, maximum: 200, default: 25 }
@@ -315,6 +316,7 @@ const tools = [
         ...windowTargetProperties,
         text: { type: "string" },
         method: { type: "string", enum: ["clipboard", "sendinput", "background"], default: "clipboard" },
+        focusMode: { type: "string", enum: ["preserve", "main"], default: "preserve", description: "preserve keeps the focus established by a previous click, essential for OCR/visual targets. main explicitly tries to focus the window's largest Edit/Document control." },
         restoreClipboard: { type: "boolean", default: true }
       }
     }
@@ -405,7 +407,7 @@ const tools = [
   },
   {
     name: "windows_computer_use_ocr",
-    description: "OCR a window (or the whole desktop) with Windows.Media.Ocr — the fallback for UIA-blind apps (games, self-drawn Tk/Qt, RDP, canvases). Returns the full text plus lines with word boxes and line boundingBox values in SCREEN coordinates, so you can click on OCR'd text. With query, matched word runs are upgraded to the underlying UIA control for direct invoke/click. Slower than the UIA tree (~1-3s); use it after snapshot/find shows a sparse tree, or when the app is known to be UIA-blind.",
+    description: "Read visible text with Windows.Media.Ocr, independent of UIA by default. Returns text, lines and word boxes in SCREEN coordinates. query is literal text matching, not semantic recognition; inspect lines if 'search' misses a placeholder. Click matched.word.x/y using foreground dispatch, then type_text with focusMode:'preserve'. Optional resolveControl performs a potentially blocking UIA hit-test; its control may be the whole page rather than the text input.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -413,22 +415,40 @@ const tools = [
         ...windowTargetProperties,
         scope: { type: "string", enum: ["active_window", "desktop"], default: "active_window" },
         maxWidth: { type: "integer", minimum: 0, maximum: 7680, default: 1920 },
+        resolveControl: { type: "boolean", default: false },
+        includeScreenshot: { type: "boolean", default: false },
         query: {
           type: "string",
-          description: "Optional text to search for in the OCR words (case-insensitive, ignoring whitespace in both words and query). When set, the response includes query plus matched entries (up to 3) with the hit line, the word run's boundingBox, its center in word.x/y, and the UIA control under that center. Supports CJK text split into individual characters."
+          description: "Optional literal text query, case-insensitive and ignoring whitespace. Returns up to 3 matched word runs with screen boundingBox and center in word.x/y. control is null unless resolveControl:true opts into a UIA hit-test. Supports character-segmented CJK text."
         }
       }
     }
   },
   {
+    name: "windows_computer_use_screenshot",
+    description: "Capture a window or desktop without querying UIA. Returns an image plus bounds and imageScale for mapping image pixels to SCREEN coordinates: screen = bounds origin + image / imageScale. Use when the accessibility provider is unavailable, or to locate icons visually. Capture does not prove an action succeeded; inspect the resulting state.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {
+      ...windowTargetProperties,
+      scope: { type: "string", enum: ["active_window", "desktop"], default: "active_window" },
+      maxWidth: { type: "integer", minimum: 0, maximum: 7680, default: 1600 }
+    } }
+  },
+  {
     name: "windows_computer_use_wait_for",
-    description: "Poll server-side until a window appears or disappears (or timeout). Prefer this over wait+check loops: saves round-trips. Returns found + waitedMs (and timedOut when the deadline passed).",
+    description: "Wait for a window, a UIA element, or literal visible OCR text to appear/disappear. condition:'window' uses native window enumeration; 'element' uses a bounded UIA query; 'text' uses OCR without UIA. Returns verification:'observed' only when the condition was observed; truncated UIA absence is inconclusive. Text is literal, so use the actual expected text, not an inferred semantic label.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
-      required: ["windowTitle"],
       properties: {
-        windowTitle: { type: "string" },
+        ...windowTargetProperties,
+        condition: { type: "string", enum: ["window", "element", "text"], default: "window" },
+        query: { type: "string" },
+        controlType: { type: "string" },
+        scope: { type: "string", enum: ["active_window", "desktop"], default: "active_window" },
+        ...treeViewProperties,
+        treeTimeoutMs: { type: "integer", minimum: 100, maximum: 30000, default: 1000 },
+        maxDepth: { type: "integer", minimum: 0, maximum: 12, default: 8 },
+        maxNodes: { type: "integer", minimum: 1, maximum: 5000, default: 1200 },
         appear: { type: "boolean", default: true },
         timeoutMs: { type: "integer", minimum: 100, maximum: 60000, default: 5000 },
         intervalMs: { type: "integer", minimum: 50, maximum: 5000, default: 250 }
@@ -461,7 +481,35 @@ const tools = [
 ];
 
 function safeJson(value) {
-  return JSON.stringify(value, null, 2);
+  return JSON.stringify(value);
+}
+
+// Validate and apply defaults from the same schemas advertised to MCP clients.
+// Never coerce strings/booleans into input coordinates or other action arguments.
+function validateArguments(schema, value, location = "arguments") {
+  const fail = message => { throw new Error(`INVALID_ARGUMENTS: ${location} ${message}`); };
+  if (schema.type === "object") {
+    if (!value || typeof value !== "object" || Array.isArray(value)) fail("must be an object");
+    for (const key of Object.keys(value)) if (!Object.hasOwn(schema.properties, key)) fail(`has unknown property '${key}'`);
+    for (const key of schema.required || []) if (!Object.hasOwn(value, key)) fail(`requires '${key}'`);
+    const normalized = {};
+    for (const [key, child] of Object.entries(schema.properties)) {
+      if (Object.hasOwn(value, key)) normalized[key] = validateArguments(child, value[key], `${location}.${key}`);
+      else if (Object.hasOwn(child, "default")) normalized[key] = child.default;
+    }
+    return normalized;
+  }
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) fail("must be an array");
+    if (value.length < (schema.minItems || 0)) fail(`needs at least ${schema.minItems} items`);
+    if (value.length > (schema.maxItems ?? 10000)) fail("has too many items");
+    return value.map((item, i) => validateArguments(schema.items, item, `${location}[${i}]`));
+  }
+  if (schema.type === "integer" ? !Number.isSafeInteger(value) : typeof value !== schema.type) fail(`must be ${schema.type}`);
+  if (schema.enum && !schema.enum.includes(value)) fail(`must be one of ${schema.enum.join(", ")}`);
+  if (schema.minimum !== undefined && value < schema.minimum) fail(`must be >= ${schema.minimum}`);
+  if (schema.maximum !== undefined && value > schema.maximum) fail(`must be <= ${schema.maximum}`);
+  return value;
 }
 
 function stripImagePayload(result) {
@@ -485,7 +533,7 @@ let backendNextId = 0;
 const backendWaiters = new Map(); // id -> {resolve, reject, timer, proc}
 const pendingToolCalls = new Map(); // MCP request id -> {proc}
 const retiringBackends = new WeakSet();
-const interruptibleActions = new Set(["health", "snapshot", "tree", "list_windows", "find", "element_info", "wait", "ocr", "wait_for"]);
+const interruptibleActions = new Set(["health", "snapshot", "screenshot", "tree", "list_windows", "find", "element_info", "wait", "ocr", "wait_for"]);
 
 function dispatchNextBackend(proc) {
   if (retiringBackends.has(proc)) return;
@@ -495,6 +543,9 @@ function dispatchNextBackend(proc) {
   if (!entry) return;
   const [id, w] = entry;
   w.sent = true;
+  // Queue time is not execution time. An unsent request must never kill
+  // a different action that currently owns the backend or the input state.
+  w.timer = setTimeout(w.onTimeout, w.timeoutMs);
   proc.stdin.write(JSON.stringify({ id, action: w.action, args: w.args }) + "\n");
 }
 
@@ -620,39 +671,51 @@ function runBackend(action, args = {}, timeoutMs = 30000, request) {
   if (request) request.proc = proc;
   const id = ++backendNextId;
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
+    const onTimeout = () => {
       if (!backendWaiters.has(id)) return;
       backendWaiters.delete(id);
       const targetHint = ['snapshot', 'tree', 'find', 'element_info', 'type_text', 'focus', 'invoke', 'set_value', 'activate_window'].includes(action)
         ? '. Target responsiveness is unknown; the target may also be unresponsive. Avoid immediately retrying tree/input calls; check the window with list_windows and prefer screenshot/ocr after it recovers.' : '';
-      reject(new Error(`Windows Computer Use backend timed out after ${timeoutMs}ms during ${action}${targetHint}`));
+      const error = new Error(`Windows Computer Use backend timed out after ${timeoutMs}ms during ${action}${targetHint}`);
+      error.backendTimeout = true;
+      reject(error);
       // The wedged call may have stalled the backend loop: kill it and
       // respawn lazily on the next call.
       killBackend(new Error("Backend stopped after another action timed out"), proc);
-    }, timeoutMs);
-    backendWaiters.set(id, { resolve, reject, timer, proc, request, action, args, sent: false });
+    };
+    backendWaiters.set(id, { resolve, reject, timer: null, onTimeout, timeoutMs, proc, request, action, args, sent: false });
     dispatchNextBackend(proc);
   });
 }
 
 async function callTool(name, args, request) {
+  const definition = tools.find(tool => tool.name === name);
+  if (!definition) throw new Error(`Unknown tool: ${name}`);
+  args = validateArguments(definition.inputSchema, args);
+  const actionName = name.replace("windows_computer_use_", "");
+  if (["click", "double_click", "move", "scroll", "element_info"].includes(actionName) && !args.elementId && (args.x === undefined || args.y === undefined)) throw new Error("INVALID_ARGUMENTS: provide elementId or both x and y");
+  if (actionName === "wait_for") {
+    if (args.condition === "window" && !args.windowTitle?.trim() && !args.processId && !args.nativeWindowHandle) throw new Error("INVALID_ARGUMENTS: window wait requires a target");
+    if (args.condition !== "window" && !args.query?.trim()) throw new Error("INVALID_ARGUMENTS: text/element wait requires query");
+  }
+  if (actionName === "keypress" && args.keys.filter(key => !/^(ctrl|control|alt|option|shift)$/i.test(key)).length !== 1) throw new Error("INVALID_ARGUMENTS: keypress needs exactly one non-modifier key");
   switch (name) {
     case "windows_computer_use_health":
       return backendText("health", args, undefined, request);
     case "windows_computer_use_snapshot": {
-      const result = await runBackend("snapshot", args, 45000, request);
+      const result = await observeBackend("snapshot", args, request);
       const content = [{ type: "text", text: safeJson(stripImagePayload(result)) }];
       if ((args?.includeScreenshot ?? true) && result.screenshot?.base64) {
         content.push({ type: "image", data: result.screenshot.base64, mimeType: "image/png" });
       }
-      return { content };
+      return { content, ...(result.ok === false ? { isError: true } : {}) };
     }
     case "windows_computer_use_accessibility_tree":
-      return backendText("tree", args, 45000, request);
+      return observationText("tree", args, request);
     case "windows_computer_use_list_windows":
       return backendText("list_windows", args, undefined, request);
     case "windows_computer_use_find":
-      return backendText("find", args, 45000, request);
+      return observationText("find", args, request);
     case "windows_computer_use_element_info":
       return backendText("element_info", args, undefined, request);
     case "windows_computer_use_click":
@@ -680,7 +743,9 @@ async function callTool(name, args, request) {
     case "windows_computer_use_wait":
       return backendText("wait", args, Math.max(31000, Number(args?.milliseconds || 500) + 1000), request);
     case "windows_computer_use_ocr":
-      return backendText("ocr", args, 60000, request);
+      return imageResult(await runBackend("ocr", args, 20000, request));
+    case "windows_computer_use_screenshot":
+      return imageResult(await runBackend("screenshot", args, 15000, request));
     case "windows_computer_use_wait_for":
       return backendText("wait_for", args, Math.max(31000, Number(args?.timeoutMs || 5000) + 2000), request);
     case "windows_computer_use_close_window":
@@ -692,8 +757,60 @@ async function callTool(name, args, request) {
   }
 }
 
+function imageResult(result) {
+  const content = [{ type: "text", text: safeJson(stripImagePayload(result)) }];
+  if (result.screenshot?.base64) content.push({ type: "image", data: result.screenshot.base64, mimeType: "image/png" });
+  return { content, ...(result.ok === false ? { isError: true } : {}) };
+}
+
+async function observeBackend(action, args, request) {
+  let result;
+  try {
+    // Allows cold startup and capture overhead while bounding a wedged provider.
+    result = await runBackend(action, args, args.treeTimeoutMs + 10000, request);
+  } catch (error) {
+    if (!error.backendTimeout || request?.cancelled) throw error;
+    // Never replay a timed-out input action. Only capture a fresh native image;
+    // retain explicit failure so callers cannot mistake it for a successful tree.
+    result = { ok: false, action, source: "uia", truncated: true, truncationReason: "backendTimeout", warning: error.message };
+    if (action !== "snapshot" || args.includeScreenshot) {
+      try {
+        const shot = await runBackend("screenshot", { ...args, activate: false }, 15000, request);
+        result.screenshot = shot.screenshot;
+      } catch (captureError) { result.captureError = captureError.message; }
+    }
+    return result;
+  }
+  result.source = "uia";
+  // Browser window chrome can itself expose ~10 nodes without any app content.
+  // This is a fallback heuristic, not proof that the app is inaccessible.
+  const sparse = (result.nodeCount ?? result.scannedNodes) <= 20;
+  if (sparse || result.truncated) result.hint = "UIA is sparse or incomplete. Use OCR text/coordinates or screenshot vision; literal 'search' may miss a placeholder. Inspect visible text before choosing a coordinate.";
+  if (action === "find" && args.ocrFallback && !args.controlType && result.results?.length === 0 && (sparse || result.truncated) && result.targetResponsive !== false && !request?.cancelled) {
+    try {
+      const ocr = await runBackend("ocr", { ...args, resolveControl: false, maxWidth: 1920 }, 20000, request);
+      result.ocr = ocr;
+      result.results = (ocr.matched || []).map(hit => ({ source: "ocr", name: hit.word.text, boundingBox: hit.boundingBox, x: hit.word.x, y: hit.word.y }));
+      result.source = "uia+ocr";
+    } catch (error) {
+      if (request?.cancelled) throw error;
+      result.ocrError = error.message;
+    }
+  }
+  return result;
+}
+
+async function observationText(action, args, request) {
+  return imageResult(await observeBackend(action, args, request));
+}
+
+const inputActions = new Set(["click", "double_click", "move", "drag", "scroll", "type_text", "keypress", "focus", "invoke", "set_value", "activate_window", "close_window", "move_window"]);
 async function backendText(action, args, timeoutMs, request) {
   const result = await runBackend(action, args, timeoutMs, request);
+  if (inputActions.has(action)) {
+    result.verification = result.moved === false || result.posted === false || result.activated === false ? "unconfirmed" : "sent";
+    result.verificationNote = result.verification === "sent" ? "The action was dispatched. Use wait_for or a fresh observation to verify the expected effect." : "Windows did not confirm dispatch. Inspect the warning and observe the target before retrying.";
+  }
   return { content: [{ type: "text", text: safeJson(stripImagePayload(result)) }] };
 }
 
@@ -733,7 +850,7 @@ async function handleRequest(message) {
     const request = { proc: null };
     pendingToolCalls.set(id, request);
     try {
-      const result = await callTool(params?.name, params?.arguments || {}, request);
+      const result = await callTool(params?.name, params?.arguments === undefined ? {} : params.arguments, request);
       if (request.cancelled) return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: "COMPUTER_USE_CANCELLED_AFTER_CURRENT_ACTION" }] } };
       return { jsonrpc: "2.0", id, result };
     } catch (error) {

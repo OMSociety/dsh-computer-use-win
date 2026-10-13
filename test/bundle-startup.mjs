@@ -156,14 +156,14 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     assert.equal(result.connected, true, result.error || result.stderr);
     assert.equal(result.serverInfo.name, 'windows-computer-use');
     assert.equal(result.serverInfo.version, expectedVersion);
-    assert.equal(result.toolCount, 22);
+    assert.equal(result.toolCount, 23);
     assert.equal(result.healthOk, true);
     // Catch the old 12-30 second synthetic-worker stall even when it succeeds.
     // This is a test budget with ample runner headroom, not a production timeout.
     assert.ok(result.stagesMs.health < 10000, `Synthetic health exceeded 10000ms: ${JSON.stringify(result)}`);
     assert.equal(result.waitOk, true);
     assert.equal(result.resourceCount, 6);
-    console.log(`PASS ${name} bundle -> MCP initialize / 22 tools / health / wait / 6 resources (synthetic PowerShell worker)`);
+    console.log(`PASS ${name} bundle -> MCP initialize / 23 tools / health / wait / 6 resources (synthetic PowerShell worker)`);
   }
   console.log(`BUNDLE_TIMING ${JSON.stringify({ phase: 'suite', durationMs: Math.round(performance.now() - suiteStarted) })}`);
 }

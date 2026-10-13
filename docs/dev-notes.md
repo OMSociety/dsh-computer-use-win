@@ -140,3 +140,15 @@ computer use 在 Windows 上最阴险的失败都是**静默的**——返回 ok
 逐节点缓存配合惰性 TreeWalker 保留节点/深度上限；RuntimeId 用 GetCachedPropertyValue(RuntimeIdProperty)，full 的 value/patterns 同样缓存。新增时间预算、部分树诊断、WM_NULL 响应探测、激活失败 warning 和 element_info 详细度参数。回归覆盖确定性 Provider、实际 WinForms/Chromium 及人为阻塞后的恢复。新评论脚本的异步 stdout/stderr 读取修复有效，但 A/B 每节点耗时分母不同，不能直接引用 7.7 倍加速；API 调用计数也不等同于直接测得的 COM 往返次数。原报告的网易云特定版本尚待复测。
 
 可运行 npm test；独立实机夹具命令为 node test/uia-chromium-smoke.mjs <结果目录> 与 node test/uia-native-smoke.mjs <结果目录>。Chromium 基线比较可指定 WCU_BASELINE_ROOT 为旧版本 checkout，使用相同 raw/full 或 raw/compact、节点与深度参数，并交换运行顺序。
+
+## 2026-10-14：0.3.0 观察与动作验证
+
+新增原生 screenshot，默认 OCR、坐标输入、窗口管理和激活使用 Win32 元数据。空的稀疏/截断 find 自动补 OCR，候选明确带来源；文字缺失时保留识别行。type_text 默认保留前一步点击建立的焦点。wait_for 可等待窗口、UIA 控件或实际 OCR 文字；发送动作与观察到条件分别报告 sent/observed，拒绝激活为 unconfirmed。输入参数由 tools/list 的同一份 schema 校验及应用默认值。树结果使用紧凑 JSON，排队请求从发送时开始计时，树 watchdog 为遍历预算加 10 秒；超时错误可附新 worker 获取的独立截图。
+
+RuntimeId 使用最多 6000 条、5 分钟的观察注册表，校验 HWND/PID 和显式目标。剪贴板格式在覆盖前读取、finally 恢复；drag 保证 release，drag/scroll 检查输入返回值，SendKeys 字面特殊字符转义。
+
+本机 PowerShell 5.1 与 7 各通过 17 项隔离回归，包括真实 WinForms、强制无障碍 Chromium 和不暴露文字控件的 canvas。WinRT OCR 的真实验证在 5.1 路径；7 路径覆盖截图、UIA 与确定性 OCR 协议，不宣称其 WinRT OCR 支持。
+
+专属 Windows 11 Home China 22621.4112 虚拟机，PS 5.1.22621.4111、2560×1600、DPI 144，默认启动网易云 3.1.41.205529。最终候选通过官方 Cordis/ToolRuntime/MCP bridge 完成 OCR 定位搜索框、点击、输入“晴天”、回车，并在同一次结果截图的 OCR 中读到“单曲”和“周杰伦”；点查询返回的 RuntimeId 可再次解析。文本、16×16 Bitmap 和 FileDrop 在真实剪贴板输入后均恢复。每次工具调用前后原生响应探测通过。
+
+占位文字会轮换，页面和建议项异步加载；验收使用同一观察中的坐标及结果页文字，不能仅把建议项出现视为搜索完成。此测试无模型参与、未验证播放，原帖所述应用卡死仍未复现。新版本保留零运行时 npm 依赖和 PS 5.1；未捆绑视觉解析模型。

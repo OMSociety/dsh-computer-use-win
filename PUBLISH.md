@@ -31,7 +31,7 @@
 |---|---|
 | `package.json` | `dsh.bundle` manifest + `files` + `os: win32` + metadata |
 | `cordis.patch.yml` | bundle 补丁（`!!js` 相对路径解析 server.mjs，任何 profile 可装） |
-| `mcp/server.mjs` / `scripts/windows-uia.ps1` | 本体（22 工具 + PowerShell UIA 引擎） |
+| `mcp/server.mjs` / `scripts/windows-uia.ps1` | 本体（23 工具 + PowerShell UIA 引擎） |
 | `test/` | 测试套件（CI 里跑 self-test + 协议测试） |
 | `LICENSE` | MIT |
 | `.github/workflows/ci.yml` | windows-latest 上跑 self-test + 协议测试 |
@@ -79,7 +79,7 @@ git commit -m "Add Yu-tao-Li/dsh-computer-use-win"
 git push origin HEAD
 gh pr create --repo awesome-dsh-plugin/awesome-dsh-plugin \
   --title "Add Yu-tao-Li/dsh-computer-use-win" \
-  --body "Windows computer use for DSH: MCP stdio server + PowerShell UIA backend, 22 desktop tools."
+  --body "Windows computer use for DSH: MCP stdio server + PowerShell UIA backend, 23 desktop tools."
 ```
 
 ### 第 5 步：CI 会检查什么（失败就在同一分支推修复）

@@ -10,7 +10,7 @@
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 
-**Windows computer use for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)** — an MCP stdio server backed by a PowerShell + UI Automation engine. It lets the agent **see** the desktop (accessibility tree, window-cropped screenshots, OCR with word boxes) and **act** on it (mouse, keyboard, semantic UIA actions, window management) across 22 tools.
+**Windows computer use for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)** — an MCP stdio server backed by a PowerShell + UI Automation engine. It lets the agent **see** the desktop (accessibility tree, window-cropped screenshots, OCR with word boxes) and **act** on it (mouse, keyboard, semantic UIA actions, window management) across 23 tools.
 
 Bridges into DSH through the in-box `@deepseek-ai/dsh-mcp-client` — no DSH modifications. Zero runtime dependencies.
 
@@ -23,7 +23,7 @@ Bridges into DSH through the in-box `@deepseek-ai/dsh-mcp-client` — no DSH mod
 - **Text-first observation** — UIA accessibility tree in three views (`control` / `content` / `raw`); find controls by name, automation id, class or value instead of guessing pixels. Element ids use UIA RuntimeIds (stable across UI refresh; stale ids report `stale` instead of mis-clicking).
 - **Three-level screenshot chain** — `PrintWindow` (works on non-foreground windows) → **WGC** (`Windows.Graphics.Capture`, for DirectComposition/occluded windows) → screen-region fallback with an `occludedPossible` flag. Window crop + downscale + `imageScale`/`origin` coordinate mapping; PNGs auto-GC after 30 min.
 - **Three input paths, honestly reported** — semantic (UIA `Invoke`/`Toggle`/`Value` patterns, no mouse), foreground (`SetCursorPos` + SendInput + clipboard paste / `KEYEVENTF_UNICODE`), background (PostMessage into the window queue, no foreground steal; delivery is unverified and reported as `verified:false` — Chromium/Electron/WinUI silently drop synthetic messages, and the tool tells you).
-- **OCR fallback for UIA-blind apps** — `Windows.Media.Ocr` via a csc-compiled C# WinRT helper; returns text, per-word screen-coordinate boxes, and line bounding boxes. `query` ignores case and whitespace, supports CJK segmented into individual characters, and upgrades a match to the control at the matched word run's union-box center (`ControlFromPoint`).
+- **OCR fallback for UIA-blind apps** — `Windows.Media.Ocr` via a csc-compiled C# WinRT helper; returns text, per-word screen-coordinate boxes, and line bounding boxes. `query` ignores case and whitespace, supports CJK segmented into individual characters, and optionally hit-tests the union-box center with resolveControl:true. The default returns OCR geometry without UIA.
 - **Safety built in**
   - *Coordinate homing* — window moves after observation are compensated; the click reports `homed:{dx,dy}`.
   - *Failsafe panic brake* — park the physical mouse in the screen corner for 500 ms and all input is refused (`EMERGENCY STOP`); only a human moving the mouse releases it.
@@ -31,6 +31,18 @@ Bridges into DSH through the in-box `@deepseek-ai/dsh-mcp-client` — no DSH mod
   - *Foreground verification* — typed input is fail-closed: if the target window is not truly foreground, the action errors instead of hitting the wrong app.
   - *Win-key blacklist* — `Win+R/X/L/S` style chords are refused by design.
 - **Persistent backend** — one long-lived PowerShell process with a JSON-line protocol; hot latency 6–100 ms (first call ~500 ms cold). C# P/Invoke helpers compile once to hash-named cached DLLs.
+
+## 0.3 observation and verification
+
+`find` automatically attaches OCR after an empty sparse (at most 20 nodes, a heuristic) or incomplete UIA query. Disable with `ocrFallback:false`. A `controlType` filter stays UIA-only. OCR candidates carry `source:"ocr"` and screen coordinates, not UIA ids; inspect `ocr.lines` when a literal query misses a placeholder.
+
+The standalone `screenshot` tool and default OCR use native HWND metadata without UIA. `ocr(includeScreenshot:true)` returns MCP image content for a vision-capable caller. `resolveControl:true` opts into potentially blocking UIA hit-testing; that control may represent a whole page.
+
+After an OCR/visual click, `type_text` preserves focus by default. `focusMode:"main"` explicitly requests the old largest-text-control behavior. Actions report `verification:"sent"`; verify effects with `wait_for(condition:"text",query:...)` or `condition:"element"`. Only a satisfied observable condition reports `verification:"observed"`; incomplete trees cannot prove absence.
+
+Advertised schemas validate arguments and supply defaults before launching the worker. Queue deadlines start at dispatch. A tree watchdog allows its traversal budget plus 10 seconds; a UIA timeout remains an error even if a replacement worker supplies a native screenshot. RuntimeIds are cached for five minutes (6000 entries maximum), with native owner checks. Unknown/stale ids require re-observation. Clipboard formats are eagerly preserved and restored during exception cleanup.
+
+No OmniParser or UI-TARS model is bundled. A separate vision service or capable calling model can consume screenshots; literal OCR does not provide general icon semantics.
 
 ## Install
 
@@ -49,11 +61,11 @@ Restart `dsh web`. The tools appear as `mcp__wincu__windows_computer_use_*`.
 
 In DSH Desktop, `process.execPath` points to the Electron executable. Since 0.2.4, the bundle explicitly sets `ELECTRON_RUN_AS_NODE=1` for the MCP child, so Electron runs the server in Node mode; ordinary Node also works with this flag. Custom Electron builds must enable the `runAsNode` fuse. If you added a full user-config override for #13, remove that dedicated override after upgrading and check `health` so the updated bundle defaults take effect.
 
-## Tools (22, prefix `mcp__wincu__`)
+## Tools (23, prefix `mcp__wincu__`)
 
 | Group | Tools |
 |---|---|
-| Observe | `health` · `snapshot` (tree + screenshot) · `accessibility_tree` · `list_windows` · `find` · `element_info` · `ocr` |
+| Observe | `health` · `snapshot` (tree + screenshot) · `accessibility_tree` · `list_windows` · `find` · `element_info` · `ocr` · `screenshot` |
 | Act | `click` · `double_click` · `move` · `drag` · `scroll` · `type_text` (clipboard / sendinput / background) · `keypress` · `focus` · `invoke` · `set_value` |
 | Window | `activate_window` · `move_window` · `close_window` (WM_CLOSE; the app may veto with a save dialog) · `wait_for` · `wait` |
 
@@ -95,7 +107,7 @@ scripts/windows-uia.ps1       ← this repo: desktop engine (PowerShell 5.1)
 mcp/server.mjs        MCP stdio server + persistent backend manager
 scripts/windows-uia.ps1  desktop engine (one-shot & -Persistent modes)
 test/                 self-test / MCP protocol / Notepad E2E / features / benchmarks
-docs/wiki/            upstream architecture docs (see THIRD_PARTY.md)
+docs/wiki/            current tool docs and upstream historical notes (see THIRD_PARTY.md)
 docs/dev-notes.md     design rationale, pitfalls, benchmarks, test log
 ```
 

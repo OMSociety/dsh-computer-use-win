@@ -9,18 +9,18 @@ $ast = [System.Management.Automation.Language.Parser]::ParseInput($source, [ref]
 if ($parseErrors.Count) { throw 'Backend source did not parse.' }
 foreach ($name in @('Get-Prop', 'Invoke-Safe', 'Get-OcrWordBounds', 'Find-OcrWordRun', 'Invoke-Action')) {
   $function = $ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true)
-  if ($null -ne $function) { Invoke-Expression $function.Extent.Text }
+  if ($null -ne $function) { Invoke-Expression ($function.Extent.Text.Replace('System.Windows','Fixture')) }
 }
 Add-Type -TypeDefinition @'
 using System;
 using System.Collections.Generic;
-namespace System.Windows {
+namespace Fixture {
   public struct Point {
     public double X, Y;
     public Point(double x, double y) { X = x; Y = y; }
   }
 }
-namespace System.Windows.Automation {
+namespace Fixture.Automation {
   public class AutomationElement {
     public class Info {
       public string ControlType = "Button", Name = "Fixture Control";
@@ -28,9 +28,9 @@ namespace System.Windows.Automation {
       public object BoundingRectangle = null;
     }
     public Info Current = new Info();
-    public static List<System.Windows.Point> Hits = new List<System.Windows.Point>();
+    public static List<Fixture.Point> Hits = new List<Fixture.Point>();
     public static bool ThrowOnHit;
-    public static AutomationElement FromPoint(System.Windows.Point point) {
+    public static AutomationElement FromPoint(Fixture.Point point) {
       Hits.Add(point);
       if (ThrowOnHit) throw new Exception("Simulated UIA failure");
       return new AutomationElement();
@@ -56,10 +56,10 @@ function Words { param([string[]]$Text)
   foreach ($part in $Text) { @{text=$part;x=(10+20*$index);y=20;width=12;height=20}; $index++ }
 }
 function Run-Ocr { param([object[]]$Lines, [string]$Query)
-  [System.Windows.Automation.AutomationElement]::Hits.Clear()
+  [Fixture.Automation.AutomationElement]::Hits.Clear()
   $script:Ocr = @{text='Fixture OCR'; lines=$Lines}
   $script:Shot = @{path='fixture.png'; bounds=@{x=100;y=200}; imageScale=0.5}
-  return Invoke-Action -Action 'ocr' -InputObject ([pscustomobject]@{scope='desktop'; query=$Query})
+  return Invoke-Action -Action 'ocr' -InputObject ([pscustomobject]@{scope='desktop'; query=$Query; resolveControl=$true})
 }
 
 # Reproduce the issue through the actual action, including screen-coordinate mapping.
@@ -76,8 +76,8 @@ Assert-Box $result.lines[1].boundingBox 120 240 184 40
 Assert-Equal $result.matched[0].word.x 172 'First run center x'
 Assert-Equal $result.matched[1].word.x 252 'Prefixed run center x'
 Assert-Equal $result.matched[0].word.y 260 'Run center y'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::Hits.Count) 2 'Hit-test count'
-Assert-Equal ([System.Windows.Automation.AutomationElement]::Hits[1].X) 252 'FromPoint must use full run center'
+Assert-Equal ([Fixture.Automation.AutomationElement]::Hits.Count) 2 'Hit-test count'
+Assert-Equal ([Fixture.Automation.AutomationElement]::Hits[1].X) 252 'FromPoint must use full run center'
 Write-Output 'PASS CJK query, prefix offsets, DPI scaling, union boxes and actual UIA upgrade path'
 
 $cases = @(
@@ -101,7 +101,7 @@ Write-Output 'PASS Chinese, Japanese, Korean, case folding, whitespace, partial-
 foreach ($query in @('不存在'," `t$([char]0xA0)",'区作')) {
   $result = Run-Ocr @($lines[0]) $query
   Assert-Equal $result.matched.Count 0 'Nonmatching/blank query'
-  Assert-Equal ([System.Windows.Automation.AutomationElement]::Hits.Count) 0 'No hit-test without a match'
+  Assert-Equal ([Fixture.Automation.AutomationElement]::Hits.Count) 0 'No hit-test without a match'
 }
 $result = Run-Ocr @(@{text='A,B';words=@(Words @('A,B'))}) 'ab'
 Assert-Equal $result.matched.Count 0 'Punctuation must remain significant'
@@ -116,10 +116,10 @@ Assert-Equal $result.matched.Count 0 'Empty OCR matches'
 
 $result = Run-Ocr @($lines[0],$lines[0],$lines[0],$lines[0]) '工作区'
 Assert-Equal $result.matched.Count 3 'Existing match limit'
-[System.Windows.Automation.AutomationElement]::ThrowOnHit = $true
+[Fixture.Automation.AutomationElement]::ThrowOnHit = $true
 $result = Run-Ocr @($lines[0]) '工作区'
 Assert-Equal $result.matched.Count 1 'OCR match survives UIA failure'
 Assert-Equal ($null -eq $result.matched[0].control) $true 'Unavailable control stays null'
 Assert-Box $result.matched[0].boundingBox 120 240 104 40
-[System.Windows.Automation.AutomationElement]::ThrowOnHit = $false
+[Fixture.Automation.AutomationElement]::ThrowOnHit = $false
 Write-Output 'PASS empty/absent/no-match output, match cap and UIA failure fallback'

@@ -44,7 +44,7 @@ try{
   const script=`param([switch]$Persistent)\nwhile($null -ne ($line=[Console]::In.ReadLine())){\n$r=$line|ConvertFrom-Json\nif($r.action -eq 'click'){Start-Sleep -Milliseconds 500;[IO.File]::WriteAllText('${marker.replaceAll("'","''")}','released')}\n[Console]::WriteLine((@{id=$r.id;ok=$true}|ConvertTo-Json -Compress))\n}\n`;
   const input=await fixture('synthetic-input',script);
   assert.equal((await call(input,'wait',{milliseconds:1})).isError,undefined);
-  const inputId=input.next,start=performance.now(),action=call(input,'click'),later=call(input,'wait',{milliseconds:1});
+  const inputId=input.next,start=performance.now(),action=call(input,'click',{x:1,y:2}),later=call(input,'wait',{milliseconds:1});
   await delay(100);cancel(input,inputId);assert.equal((await later).isError,true);assert.equal((await action).isError,true);
   assert.equal(await readFile(marker,'utf8'),'released');assert.ok(performance.now()-start>=450);
   assert.equal((await call(input,'wait',{milliseconds:1})).isError,undefined);

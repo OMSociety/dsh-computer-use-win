@@ -35,7 +35,7 @@ try {
   for (const [tool, action] of cases) {
     assert.equal((await call('wait', { milliseconds: 1 })).isError, undefined);
     const id = client.next;
-    const active = call(tool, { activate: true, windowTitle: 'synthetic', includeScreenshot: false });
+    const active = call(tool, { activate: true, windowTitle: 'synthetic', ...(tool === 'snapshot' ? {includeScreenshot:false} : {}), ...(tool === 'element_info' ? {x:1,y:2} : {}), ...(tool === 'find' ? {query:'synthetic'} : {}) });
     const started = path.join(root, action + '.started');
     for (let i = 0; i < 500 && !await exists(started); i++) await delay(10);
     assert.ok(await exists(started), `${tool} did not start`);

@@ -1,165 +1,362 @@
-# MCP Tools
+# MCP tools for DeepSeek Harness
 
-The MCP server is `windows-computer-use`, launched by:
+The Node server enforces the same schemas returned by tools/list. Unknown properties, wrong types and out-of-range values fail before backend execution. Tool names are prefixed windows_computer_use_; the DSH bridge typically adds mcp__wincu__.
 
-```powershell
-node .\mcp\server.mjs
-```
+## Observation and task verification
+
+Prefer scoped UIA observations. find supplements an empty sparse (at most 20 nodes, a heuristic) or incomplete search with OCR, unless ocrFallback:false or controlType is specified. OCR candidates are recognized text and screen coordinates, not UIA ids. Inspect ocr.lines if a literal query misses a placeholder.
+
+screenshot and default OCR do not resolve UIA. OCR resolveControl:true opts into hit-testing; its control may represent the whole page. includeScreenshot:true returns MCP image content. Map image pixels to screen = imageBounds origin + image / imageScale. Occluded captures are explicitly flagged.
+
+After a coordinate click, type_text preserves focus. Explicit focusMode:main requests heuristic main-control focus. Input actions only report verification:sent; use wait_for for an expected window, UIA element or literal visible text. A confirmed condition reports verification:observed; truncated UIA absence and occluded OCR are inconclusive. Confirm text that exists only after the desired effect, rather than the same text just typed.
+
+Tree watchdogs allow treeTimeoutMs + 10 seconds. A timeout retires the worker; an independently captured image remains supplemental to the explicit UIA error. Input is never replayed. Queue deadlines begin at actual dispatch. Observed RuntimeIds are cached for five minutes, at most 6000 references, with native owner checks; unknown/stale ids require a scoped re-observation.
+
+No visual model is bundled. A vision-capable caller or external parser can consume screenshot content and send coordinates to the guarded input tools.
 
-The plugin `.mcp.json` uses Codex's plugin-local server map format:
-
-```json
-{
-  "windows-computer-use": {
-    "command": "node",
-    "args": ["./mcp/server.mjs"]
-  }
-}
-```
-
-## Observation
-
-### Window Targeting
-
-Most observation and element-action tools accept optional target fields:
-
-- `windowTitle`: case-insensitive substring of a top-level window title
-- `processId`: process id of a top-level window
-- `nativeWindowHandle`: HWND returned by `windows_computer_use_list_windows`
-- `activate`: when true, bring the target window forward before reading or acting
-
-`activate` is honoured wherever it changes the outcome: `drag`, `type_text`, `keypress` (input requires the foreground), element-target resolution in `snapshot` / `accessibility_tree` / `find` / `element_info` / `focus` / `invoke` / `set_value`, the x/y coordinate paths of `click` / `double_click` / `move` / `scroll` and `element_info` (coordinates hit whatever is physically under the point, so the target must come forward first), window capture in `ocr`, and `move_window` (the moved window takes the foreground). `close_window` ignores it (WM_CLOSE works in the background), and `activate_window` always activates regardless of the flag.
-
-Use these fields when focus may move during a tool call. A reliable pattern is:
-
-1. Call `windows_computer_use_list_windows`.
-2. Pick the intended top-level window.
-3. Pass `nativeWindowHandle` to `snapshot`, `find`, `element_info`, `move`, `click`, `focus`, `invoke`, and `set_value`.
-
-### Tree View Options
-
-Tree-reading tools accept:
-
-- `viewMode`: `control`, `content`, or `raw`; default is `control`.
-- `includeOffscreen`: include elements reported by UIA as offscreen; default is `false`.
-- `detailLevel`: `compact` or `full` for `snapshot`, `accessibility_tree`, and `element_info`; default is `compact`. `find` retains full metadata and value matching.
-- `treeTimeoutMs`: 100–30000 ms for `snapshot`, `accessibility_tree`, and `find`; default is 5000 ms.
-
-Trees batch properties (including RuntimeId) and, for full metadata, patterns and value into an element-scoped UIA `CacheRequest`. A filtered `TreeWalker` fetches one child/sibling at a time, preserving `maxDepth` and `maxNodes` without first materializing all descendants. Legacy path ids use the same filtered view.
-
-The time budget is checked between synchronous provider calls. Partial results carry `truncated=true`, `truncationReason` (`maxNodes`, `timeBudget`, `providerError`, or `targetUnresponsive`), and applicable `warning`/`providerError` fields. `durationMs` and these diagnostics also propagate through `find`. `targetResponsive` comes from a bounded Win32 `WM_NULL` probe of the target (null for desktop scope). An already unresponsive target is skipped before UIA resolution. A single blocked provider call can exceed the budget; the existing MCP worker timeout remains the last fallback and explains that target responsiveness is unknown. Do not immediately repeat a timed-out traversal. Inspect the window, then use a screenshot or OCR once it responds.
-
-`activate_window` returns native window metadata (`source=win32`, HWND/PID id) and `targetResponsive`. A refused activation carries a `warning`; an unresponsive target skips activation. Use `element_info(detailLevel="full")` when UIA-specific metadata is needed. `snapshot` also warns when its captured window image may contain an occluding window.
-
-Use `control` for normal actions. Use `content` when reading visible text/content. Use `raw` with `includeOffscreen=true` only when a provider hides useful nodes from the control tree or when debugging a sparse/custom app.
-
-These two options apply to scope resolution and tree walking. Legacy element ids (`uia:active.N...`, `uia:root.N...`) are view-relative path ids: if an id came from a non-default tree, pass the same `viewMode` and `includeOffscreen` to `element_info`, `move`, `click`, `double_click`, `scroll`, `focus`, `invoke`, or `set_value`. Ids of the form `uia:rt:*` (the form returned by today's trees) are looked up directly by RuntimeId and bypass view filtering — the values are validated on every path, but they are not applied to a `uia:rt:*` lookup.
-
-`windows_computer_use_health`
-
-Checks PowerShell, UI Automation, screenshot capture, active window metadata, and virtual screen bounds.
-
-`windows_computer_use_snapshot`
-
-Captures a screenshot and a bounded UI Automation tree.
-
-Arguments:
-
-- `scope`: `active_window` or `desktop`
-- `viewMode`: `control`, `content`, or `raw`
-- `includeOffscreen`: boolean
-- `detailLevel`: `compact` or `full`
-- `includeScreenshot`: boolean
-- `maxDepth`: tree depth
-- `maxNodes`: traversal cap
-
-`windows_computer_use_accessibility_tree`
-
-Reads the UI Automation tree without screenshot capture.
-
-Arguments match `snapshot` except `includeScreenshot`.
-
-`windows_computer_use_list_windows`
-
-Lists top-level desktop windows.
-
-`windows_computer_use_find`
-
-Searches name, automation id, class name, control type, localized control type, and value text.
-
-`find` honors `viewMode` and `includeOffscreen`. It internally uses full detail while scanning so ValuePattern text is searchable, but returns result objects without child trees.
-
-`windows_computer_use_element_info`
-
-Reads element details by `elementId`, or by point with `x` and `y`.
-
-`windows_computer_use_activate_window`
-
-Brings a target top-level window to the foreground by `windowTitle`, `processId`, or `nativeWindowHandle`.
-
-## Pointer Actions
-
-`windows_computer_use_move`
-
-Moves the pointer to an element center or coordinate.
-
-`windows_computer_use_click`
-
-Clicks an element center or coordinate.
-
-`windows_computer_use_double_click`
-
-Double-clicks an element center or coordinate.
-
-`windows_computer_use_drag`
-
-Drags through a list of points.
-
-`windows_computer_use_scroll`
-
-Scrolls at an element center or coordinate. Positive `deltaY` scrolls down.
-
-## Keyboard and Text
-
-`windows_computer_use_type_text`
-
-Pastes text into the currently focused control. The backend uses the clipboard for Unicode reliability and restores prior text clipboard content by default.
-
-`windows_computer_use_keypress`
-
-Sends key chords through `SendKeys`. Examples:
-
-- `["Ctrl", "L"]`
-- `["Enter"]`
-- `["Alt", "F4"]`
-- `["Shift", "Tab"]`
-
-## Structured UI Automation Actions
-
-`windows_computer_use_focus`
-
-Sets keyboard focus to an element.
-
-`windows_computer_use_invoke`
-
-Tries UIA patterns in this order: Invoke, Toggle, SelectionItem, ExpandCollapse. It can click the element center as fallback.
-
-`windows_computer_use_set_value`
-
-Uses ValuePattern to set editable control values. If ValuePattern is absent and fallback is enabled, it focuses, selects all, and types.
-
-## OCR
-
-`windows_computer_use_ocr`
-
-Recognizes a window or the desktop with Windows.Media.Ocr. `lines[].words[]` retain the engine's word boxes; `lines[].boundingBox` contains their union, in screen coordinates (or `null` when there are no valid word boxes).
-
-`query` matches within each line's word sequence, ignoring case and whitespace in both the recognized words and the query. This supports CJK characters segmented into individual words, as well as multiword Latin text. Punctuation remains significant. A query containing only whitespace has no matches.
-
-The first match in each line is returned, up to three lines. `matched[].boundingBox` covers the words intersecting the match; a partial-word match includes that word's full box. `matched[].word.text` contains the matched word run, and the existing `word.x/y` fields give its center. UIA is queried at that center; `control` is `null` when the lookup is unavailable, but the OCR match and rectangle remain usable.
-
-## Timing
-
-`windows_computer_use_wait`
-
-Waits for a bounded number of milliseconds. Use after actions that trigger animations, app launches, or slow dialogs.
+## Published tool contracts
+
+### health
+
+Check that the Windows UI Automation backend, screenshot capture, and input stack are available.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+
+### snapshot
+
+Capture a screenshot and a UI Automation tree for the active window or desktop.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| scope | string | active_window/desktop; default: "active_window" |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| detailLevel | string | compact/full; default: "compact" |
+| treeTimeoutMs | integer | default: 5000; min: 100; max: 30000 |
+| includeScreenshot | boolean | default: true |
+| captureWindow | boolean | default: false |
+| maxWidth | integer | default: 1600; min: 0; max: 7680 |
+| maxDepth | integer | default: 5; min: 0; max: 12 |
+| maxNodes | integer | default: 250; min: 1; max: 2000 |
+
+### accessibility_tree
+
+Read the UI Automation tree without taking a screenshot.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| scope | string | active_window/desktop; default: "active_window" |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| detailLevel | string | compact/full; default: "compact" |
+| treeTimeoutMs | integer | default: 5000; min: 100; max: 30000 |
+| maxDepth | integer | default: 6; min: 0; max: 12 |
+| maxNodes | integer | default: 500; min: 1; max: 3000 |
+
+### list_windows
+
+List top-level windows visible to Windows UI Automation.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| includeInvisible | boolean | default: false |
+| maxWindows | integer | default: 50; min: 1; max: 200 |
+
+### find
+
+Find UIA elements by name, automation id, class, value or type. When UIA is sparse or incomplete and no match is found, automatically read visible text with OCR. OCR candidates have SCREEN coordinates and source:'ocr', not UIA element ids. If the literal query misses, inspect ocr.lines and reformulate using the visible text (a search box may say '大家都在搜').
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| query | string | required |
+| scope | string | active_window/desktop; default: "active_window" |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| treeTimeoutMs | integer | default: 5000; min: 100; max: 30000 |
+| controlType | string |  |
+| ocrFallback | boolean | default: true |
+| maxDepth | integer | default: 8; min: 0; max: 12 |
+| maxNodes | integer | default: 1200; min: 1; max: 5000 |
+| maxResults | integer | default: 25; min: 1; max: 200 |
+
+### element_info
+
+Return UI Automation information for an element id or a screen point.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string |  |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| detailLevel | string | compact/full; default: "compact" |
+| x | integer |  |
+| y | integer |  |
+
+### click
+
+Click a screen coordinate or the center of a UI Automation element. dispatch:'auto' (default) = element clicks use the UIA Invoke/Toggle pattern in the background (no foreground steal), coordinate clicks use foreground SendInput; dispatch:'background' = PostMessage into the target window's queue (no foreground steal, delivery unverified — Chromium/Electron/UWP may drop it, then retry with foreground); dispatch:'foreground' = always foreground SendInput. Raw-coordinate clicks home-correct if the target window moved since it was observed (reported as 'homed').
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string |  |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| x | integer |  |
+| y | integer |  |
+| button | string | left/right/middle; default: "left" |
+| dispatch | string | auto/background/foreground; default: "auto" |
+
+### double_click
+
+Double click a screen coordinate or the center of a UI Automation element. Supports the same dispatch modes as click (background posts a real WM_LBUTTONDBLCLK).
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string |  |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| x | integer |  |
+| y | integer |  |
+| button | string | left/right/middle; default: "left" |
+| dispatch | string | auto/background/foreground; default: "auto" |
+
+### move
+
+Move the mouse pointer to a screen coordinate or the center of an element.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string |  |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| x | integer |  |
+| y | integer |  |
+
+### drag
+
+Drag through a path of screen coordinates.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| path | array | min items: 2; required |
+| button | string | left/right/middle; default: "left" |
+
+### scroll
+
+Scroll at a screen coordinate or element center. Positive deltaY scrolls down.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string |  |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| x | integer |  |
+| y | integer |  |
+| deltaY | integer | default: 480 |
+| deltaX | integer | default: 0 |
+
+### type_text
+
+Type text into the focused control. method:'clipboard' (default) uses clipboard paste (reliable for CJK, restores the clipboard) and needs the target in the foreground; method:'sendinput' sends each character as a KEYEVENTF_UNICODE SendInput event (no clipboard, needs the target in the foreground, best for ASCII/short text); method:'background' posts WM_CHAR straight into the target window's message queue — no clipboard, no foreground steal, delivery unverified. With a window target the result includes verifyValue (the text control's value after typing, truncated to 200 chars).
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| text | string | required |
+| method | string | clipboard/sendinput/background; default: "clipboard" |
+| focusMode | string | preserve/main; default: "preserve" |
+| restoreClipboard | boolean | default: true |
+
+### keypress
+
+Press a key or key chord, such as Ctrl+L, Enter, Alt+F4, or Shift+Tab. The Windows key is blocked by design. dispatch:'background' supports only a single printable character (posted as WM_CHAR into the target window, no foreground steal); chords and functional keys must use dispatch:'foreground' (SendKeys).
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| keys | array | min items: 1; required |
+| dispatch | string | foreground/background; default: "foreground" |
+
+### focus
+
+Set keyboard focus to a UI Automation element.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string | required |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+
+### invoke
+
+Invoke a UI Automation element through Invoke, Toggle, SelectionItem, or ExpandCollapse patterns, with click fallback.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string | required |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| fallbackClick | boolean | default: true |
+
+### set_value
+
+Set a UI Automation ValuePattern value, or focus and type as fallback.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| elementId | string | required |
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| value | string | required |
+| fallbackType | boolean | default: true |
+| restoreClipboard | boolean | default: true |
+
+### activate_window
+
+Bring a top-level window to the foreground by title substring, process id, or native HWND. This tool always activates its target; the shared activate flag cannot suppress it.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+
+### wait
+
+Wait for a short period before observing the UI again.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| milliseconds | integer | default: 500; min: 1; max: 30000 |
+
+### ocr
+
+Read visible text with Windows.Media.Ocr, independent of UIA by default. Returns text, lines and word boxes in SCREEN coordinates. query is literal text matching, not semantic recognition; inspect lines if 'search' misses a placeholder. Click matched.word.x/y using foreground dispatch, then type_text with focusMode:'preserve'. Optional resolveControl performs a potentially blocking UIA hit-test; its control may be the whole page rather than the text input.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| scope | string | active_window/desktop; default: "active_window" |
+| maxWidth | integer | default: 1920; min: 0; max: 7680 |
+| resolveControl | boolean | default: false |
+| includeScreenshot | boolean | default: false |
+| query | string |  |
+
+### screenshot
+
+Capture a window or desktop without querying UIA. Returns an image plus bounds and imageScale for mapping image pixels to SCREEN coordinates: screen = bounds origin + image / imageScale. Use when the accessibility provider is unavailable, or to locate icons visually. Capture does not prove an action succeeded; inspect the resulting state.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| scope | string | active_window/desktop; default: "active_window" |
+| maxWidth | integer | default: 1600; min: 0; max: 7680 |
+
+### wait_for
+
+Wait for a window, a UIA element, or literal visible OCR text to appear/disappear. condition:'window' uses native window enumeration; 'element' uses a bounded UIA query; 'text' uses OCR without UIA. Returns verification:'observed' only when the condition was observed; truncated UIA absence is inconclusive. Text is literal, so use the actual expected text, not an inferred semantic label.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| condition | string | window/element/text; default: "window" |
+| query | string |  |
+| controlType | string |  |
+| scope | string | active_window/desktop; default: "active_window" |
+| viewMode | string | control/content/raw; default: "control" |
+| includeOffscreen | boolean | default: false |
+| treeTimeoutMs | integer | default: 1000; min: 100; max: 30000 |
+| maxDepth | integer | default: 8; min: 0; max: 12 |
+| maxNodes | integer | default: 1200; min: 1; max: 5000 |
+| appear | boolean | default: true |
+| timeoutMs | integer | default: 5000; min: 100; max: 60000 |
+| intervalMs | integer | default: 250; min: 50; max: 5000 |
+
+### close_window
+
+Close a window gracefully by posting WM_CLOSE (the app can veto with a save dialog). Safer than killing the process; use close_window instead of alt+f4 when the app may have unsaved state you want to handle. The shared activate flag is ignored: WM_CLOSE is posted in the background and needs no foreground switch.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+
+### move_window
+
+Move (not resize) a window to screen coordinates without activating it. Useful for arranging windows, and it also refreshes the homing cache for coordinate-based actions.
+
+| Argument | Type | Default / bounds |
+|---|---|---|
+| windowTitle | string |  |
+| processId | integer | min: 1 |
+| nativeWindowHandle | integer | min: 1 |
+| activate | boolean | default: false |
+| x | integer | required |
+| y | integer | required |

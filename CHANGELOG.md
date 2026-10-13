@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-10-14
+
+- Add native `screenshot` and UIA-independent OCR capture; make OCR hit-testing opt-in and support MCP image output.
+- Automatically attach OCR text/coordinates after empty sparse or incomplete `find`; retain recognized text when the literal query misses. Keep source and geometry distinct from UIA controls.
+- Preserve focused controls during `type_text` by default; provide explicit `focusMode:main` compatibility behavior.
+- Extend `wait_for` with native window, bounded UIA element, and literal OCR text conditions. Distinguish dispatched actions from observed effects and inconclusive absence.
+- Validate parameters and apply defaults from the advertised MCP schemas; use compact JSON tool output.
+- Start request deadlines at dispatch; bound tree watchdogs relative to traversal budgets and preserve explicit UIA errors during screenshot fallback.
+- Cache observed RuntimeId references with native owner checks; fail stale ids without whole-desktop searches. Preserve clipboard formats in finally, escape literal SendKeys characters, check drag/scroll input returns, release drag buttons on failure, and report scroll homing.
+- Add deterministic schema/queue/OCR/input contracts and a real sparse canvas fixture. Existing Node/Electron and PowerShell 5.1/7 regressions remain in the release gate.
+
+
 ## 0.2.6 — 2026-10-13
 
 - UIA 树遍历改用逐节点 CacheRequest 与惰性 TreeWalker，属性、RuntimeId、full 模式的 value/patterns 均从缓存读取；不再预先枚举整棵子树或所有兄弟节点，保留 maxNodes/maxDepth 限制。

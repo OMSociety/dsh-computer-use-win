@@ -18,14 +18,17 @@ const suites = [
   ['profile-resolution', process.execPath, ['test/profile-resolution.mjs']],
   ['bundle-startup', process.execPath, ['test/bundle-startup.mjs']],
   ['backend-lifecycle', process.execPath, ['test/backend-lifecycle.mjs']],
+  ['observation-contract', process.execPath, ['test/observation-contract.mjs']],
   ['activation-cancellation', process.execPath, ['test/activation-cancellation.mjs']],
   ['native-window-discovery', process.execPath, ['test/native-window-discovery.mjs']],
   ['native-window-contract', powershell, ['-NoProfile', '-File', 'test/native-window-contract.ps1']],
   ['uia-cache-contract', powershell, ['-NoProfile', '-File', 'test/uia-cache-contract.ps1']],
   ['uia-native-smoke', process.execPath, ['test/uia-native-smoke.mjs', path.join(root, 'uia-native-smoke')]],
   ['uia-chromium-smoke', process.execPath, ['test/uia-chromium-smoke.mjs', path.join(root, 'uia-chromium-smoke')]],
+  ['sparse-canvas-smoke', process.execPath, ['test/sparse-canvas-smoke.mjs', path.join(root, 'sparse-canvas-smoke')]],
   ['ocr-query-contract', powershell, ['-NoProfile', '-File', 'test/ocr-query-contract.ps1']],
-  ['native-input-errors', powershell, ['-NoProfile', '-File', 'test/native-input-errors.ps1']]
+  ['native-input-errors', powershell, ['-NoProfile', '-File', 'test/native-input-errors.ps1']],
+  ['input-upgrade-contract', powershell, ['-NoProfile', '-File', 'test/input-upgrade-contract.ps1']]
 ];
 const results = [];
 console.log(`Isolated test artifacts: ${root}`);

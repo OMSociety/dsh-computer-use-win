@@ -24,7 +24,7 @@ public static class WindowsComputerUseNative {
   public static int GetClassName(IntPtr hwnd, StringBuilder text, int count) { text.Append("FixtureClass"); return text.Length; }
   public static uint GetWindowThreadProcessId(IntPtr hwnd, out uint owner) { owner = 4242; return 1; }
 }
-namespace System.Windows.Automation {
+namespace Fixture {
   public class AutomationElement {
     public class Info { public int NativeWindowHandle = 42; }
     public Info Current = new Info();
@@ -36,7 +36,9 @@ $names = @('Get-Prop','Get-ViewMode','Invoke-Safe','Has-WindowTarget','Test-Targ
 foreach ($name in $names) {
   $definition = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
   if ($null -eq $definition) { throw "Missing backend function: $name" }
-  . ([scriptblock]::Create($definition.Extent.Text))
+  # PS7 may preload the real UIAutomationClient type. Bind this native-window
+  # contract explicitly to its deterministic fake rather than HWND 42 on user32.
+  . ([scriptblock]::Create($definition.Extent.Text.Replace('System.Windows.Automation.AutomationElement','Fixture.AutomationElement')))
 }
 function Get-FreshWindowRect {
   param($Element)

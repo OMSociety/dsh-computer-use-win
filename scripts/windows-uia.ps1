@@ -35,6 +35,10 @@ function Get-InputObject {
 function Get-Prop {
   param([object]$Object, [string]$Name, [object]$Default = $null)
   if ($null -eq $Object) { return $Default }
+  if ($Object -is [System.Collections.IDictionary]) {
+    if ($Object.Contains($Name) -and $null -ne $Object[$Name]) { return $Object[$Name] }
+    return $Default
+  }
   $prop = $Object.PSObject.Properties[$Name]
   if ($null -eq $prop) { return $Default }
   if ($null -eq $prop.Value) { return $Default }
@@ -251,6 +255,8 @@ public static class WindowsComputerUseNative {
 
   [StructLayout(LayoutKind.Sequential)]
   public struct POINT { public int x; public int y; }
+  [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+  [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
   [DllImport("user32.dll")]
   public static extern bool GetCursorPos(out POINT p);
 
@@ -386,7 +392,7 @@ function Convert-Rect {
 }
 
 function Get-Patterns {
-  param([System.Windows.Automation.AutomationElement]$Element)
+  param([object]$Element)
   $items = New-Object System.Collections.Generic.List[string]
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern) } $false) { $items.Add("Invoke") }
@@ -404,7 +410,7 @@ function Get-Patterns {
 }
 
 function Get-ValueText {
-  param([System.Windows.Automation.AutomationElement]$Element)
+  param([object]$Element)
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern) } $false) {
     return Invoke-Safe { $pattern.Current.Value } $null
@@ -437,6 +443,9 @@ function New-ElementCacheRequest {
   return $cache
 }
 
+$script:ElementRegistry = @{}
+$script:ObservationOwner = $null
+$script:NativeOwners = @{}
 function Convert-ElementInfo {
   param(
     [System.Windows.Automation.AutomationElement]$Element,
@@ -463,6 +472,11 @@ function Convert-ElementInfo {
     isEnabled = Invoke-Safe { $Element.Cached.IsEnabled } $null
     isOffscreen = Invoke-Safe { $Element.Cached.IsOffscreen } $null
     hasKeyboardFocus = Invoke-Safe { $Element.Cached.HasKeyboardFocus } $null
+  }
+  if ($null -ne $rtStr -and $null -ne $script:ObservationOwner) {
+    if ($null -eq $script:ElementRegistry) { $script:ElementRegistry = @{} }
+    if ($script:ElementRegistry.Count -ge 6000) { $script:ElementRegistry.Clear() }
+    $script:ElementRegistry["uia:rt:$rtStr"] = @{element=$Element;hwnd=$script:ObservationOwner.nativeWindowHandle;processId=$script:ObservationOwner.processId;ts=[DateTimeOffset]::Now.ToUnixTimeMilliseconds()}
   }
   if ($DetailLevel -eq "full") {
     $valuePattern = Invoke-Safe { $Element.GetCachedPattern([System.Windows.Automation.ValuePattern]::Pattern) } $null
@@ -514,8 +528,8 @@ function Test-TargetMatch {
 }
 
 function Set-WindowForeground {
-  param([System.Windows.Automation.AutomationElement]$Element)
-  $hwnd = Invoke-Safe { $Element.Current.NativeWindowHandle } 0
+  param([object]$Element)
+  $hwnd = if (Get-Prop $Element 'nativeWindowHandle' 0) { [int64]$Element.nativeWindowHandle } else { Invoke-Safe { $Element.Current.NativeWindowHandle } 0 }
   if (-not ($hwnd -and $hwnd -ne 0)) { return $false }
   $ptr = [IntPtr]([int64]$hwnd)
 
@@ -556,7 +570,7 @@ function Set-WindowForeground {
 function Activate-TargetIfRequested {
   param([object]$InputObject)
   if ((Has-WindowTarget $InputObject) -and [bool](Get-Prop $InputObject "activate" $false)) {
-    $target = Resolve-TargetWindow $InputObject
+    $target = Get-ObservationWindow $InputObject
     $ok = Set-WindowForeground $target
     if (-not $ok) {
       $title = [string](Get-Prop $InputObject "windowTitle" "")
@@ -572,8 +586,8 @@ function Assert-TargetIsForeground {
   # into the wrong (possibly the user's) window.
   param([object]$InputObject)
   if (-not (Has-WindowTarget $InputObject)) { return }
-  $target = Resolve-TargetWindow $InputObject
-  $hwnd = Invoke-Safe { $target.Current.NativeWindowHandle } 0
+  $target = Get-ObservationWindow $InputObject
+  $hwnd = [int64]$target.nativeWindowHandle
   $fg = [WindowsComputerUseNative]::GetForegroundWindow()
   if (-not ($hwnd -and $hwnd -ne 0) -or ($fg -ne [IntPtr]([int64]$hwnd))) {
     $title = [string](Get-Prop $InputObject "windowTitle" "")
@@ -630,13 +644,21 @@ $script:WindowCache = @{}   # hwnd -> @{ x=..; y=..; ts=.. }
 $script:OcrAwait = $null    # WinRT AsTask helper (filled lazily by Get-OcrEngine)
 
 function Get-FreshWindowRect {
-  param([System.Windows.Automation.AutomationElement]$Element)
+  param([object]$Element)
+  if (Get-Prop $Element 'nativeWindowHandle' 0) { return $Element.boundingBox }
+  $hwnd = Invoke-Safe { [int64]$Element.Current.NativeWindowHandle } 0
+  if ($hwnd) {
+    $nativeRect = New-Object WindowsComputerUseNative+RECT
+    if ([WindowsComputerUseNative]::GetWindowRect([IntPtr]$hwnd, [ref]$nativeRect)) {
+      return [ordered]@{x=$nativeRect.left;y=$nativeRect.top;width=$nativeRect.right-$nativeRect.left;height=$nativeRect.bottom-$nativeRect.top}
+    }
+  }
   return Convert-Rect (Invoke-Safe { $Element.Current.BoundingRectangle } $null)
 }
 
 function Update-WindowCache {
-  param([System.Windows.Automation.AutomationElement]$Element)
-  $hwnd = Invoke-Safe { [int64]$Element.Current.NativeWindowHandle } 0
+  param([object]$Element)
+  $hwnd = if (Get-Prop $Element 'nativeWindowHandle' 0) { [int64]$Element.nativeWindowHandle } else { Invoke-Safe { [int64]$Element.Current.NativeWindowHandle } 0 }
   if (-not ($hwnd -and $hwnd -ne 0)) { return }
   $rect = Get-FreshWindowRect $Element
   if ($null -eq $rect) { return }
@@ -646,9 +668,9 @@ function Update-WindowCache {
 function Home-Point {
   # If the target window was observed before and has since moved, shift the
   # given screen point by (dx, dy). Returns @{ x=..; y=..; homed=$null or @{dx=..;dy=..} }.
-  param([int]$X, [int]$Y, [System.Windows.Automation.AutomationElement]$Target)
+  param([int]$X, [int]$Y, [object]$Target)
   $result = [ordered]@{ x = $X; y = $Y; homed = $null }
-  $hwnd = Invoke-Safe { [int64]$Target.Current.NativeWindowHandle } 0
+  $hwnd = if (Get-Prop $Target 'nativeWindowHandle' 0) { [int64]$Target.nativeWindowHandle } else { Invoke-Safe { [int64]$Target.Current.NativeWindowHandle } 0 }
   if (-not ($hwnd -and $hwnd -ne 0)) { return $result }
   $key = [string]$hwnd
   $cached = $script:WindowCache[$key]
@@ -675,21 +697,21 @@ function Home-Point {
 $script:WindowIdentity = @{}   # lowercased title -> @{ hwnd=; pid=; ts= }
 
 function Update-WindowIdentity {
-  param([object]$InputObject, [System.Windows.Automation.AutomationElement]$Target)
+  param([object]$InputObject, [object]$Target)
   $title = [string](Get-Prop $InputObject "windowTitle" "")
   if ([string]::IsNullOrWhiteSpace($title) -or $null -eq $Target) { return }
-  $hwnd = Invoke-Safe { [int64]$Target.Current.NativeWindowHandle } 0
-  $procId = Invoke-Safe { [int]$Target.Current.ProcessId } 0
+  $hwnd = if (Get-Prop $Target 'nativeWindowHandle' 0) { [int64]$Target.nativeWindowHandle } else { Invoke-Safe { [int64]$Target.Current.NativeWindowHandle } 0 }
+  $procId = if (Get-Prop $Target 'processId' 0) { [int]$Target.processId } else { Invoke-Safe { [int]$Target.Current.ProcessId } 0 }
   $script:WindowIdentity[$title.Trim().ToLowerInvariant()] = @{ hwnd = $hwnd; pid = $procId; ts = [DateTimeOffset]::Now.ToUnixTimeMilliseconds() }
 }
 
 function Assert-WindowIdentity {
-  param([object]$InputObject, [System.Windows.Automation.AutomationElement]$Target)
+  param([object]$InputObject, [object]$Target)
   $title = [string](Get-Prop $InputObject "windowTitle" "")
   if ([string]::IsNullOrWhiteSpace($title) -or $null -eq $Target) { return }
   $key = $title.Trim().ToLowerInvariant()
-  $hwnd = Invoke-Safe { [int64]$Target.Current.NativeWindowHandle } 0
-  $procId = Invoke-Safe { [int]$Target.Current.ProcessId } 0
+  $hwnd = if (Get-Prop $Target 'nativeWindowHandle' 0) { [int64]$Target.nativeWindowHandle } else { Invoke-Safe { [int64]$Target.Current.NativeWindowHandle } 0 }
+  $procId = if (Get-Prop $Target 'processId' 0) { [int]$Target.processId } else { Invoke-Safe { [int]$Target.Current.ProcessId } 0 }
   $cached = $script:WindowIdentity[$key]
   if ($null -eq $cached) {
     # First sighting of this title: baseline it, no check.
@@ -751,10 +773,9 @@ function Test-Failsafe {
 
 function Resolve-TargetHwnd {
   param([object]$InputObject)
-  $hwnd = Get-Prop $InputObject "nativeWindowHandle" $null
-  if ($null -ne $hwnd) { return [int64]$hwnd }
-  $target = Resolve-TargetWindow $InputObject
-  return Invoke-Safe { [int64]$target.Current.NativeWindowHandle } 0
+  $target = Get-ObservationWindow $InputObject
+  if ($null -eq $target) { throw 'No native target window found.' }
+  return [int64]$target.nativeWindowHandle
 }
 
 function Post-BackgroundClick {
@@ -1295,10 +1316,16 @@ function Convert-Tree {
     [System.Windows.Automation.AutomationElement]$Element,
     [string]$Path, [int]$Depth, [int]$MaxDepth, [ref]$Count, [int]$MaxNodes,
     [string]$ViewMode = "control", [bool]$IncludeOffscreen = $false,
-    [string]$DetailLevel = "compact", [object]$Traversal
+    [string]$DetailLevel = "compact", [object]$Traversal, [object]$Owner = $null
   )
   if ($Count.Value -ge $MaxNodes) { $Traversal.reason = "maxNodes"; return $null }
   if (-not (Test-TreeBudget $Traversal)) { return $null }
+  $previousOwner = $script:ObservationOwner
+  if ($null -eq $Owner -and $null -ne $script:NativeOwners) {
+    $nativeHwnd = Invoke-Safe { [int64]$Element.Cached.NativeWindowHandle } 0
+    $Owner = $script:NativeOwners[[string]$nativeHwnd]
+  }
+  $script:ObservationOwner = $Owner
   $info = Convert-ElementInfo -Element $Element -Id "uia:$Path" -Depth $Depth -DetailLevel $DetailLevel -UseCache
   $Count.Value++
   $childrenOut = New-Object System.Collections.Generic.List[object]
@@ -1308,7 +1335,7 @@ function Convert-Tree {
       $i = 0
       while ($null -ne $child) {
         if ($Count.Value -ge $MaxNodes -or -not (Test-TreeBudget $Traversal)) { break }
-        $childOut = Convert-Tree -Element $child -Path "$Path.$i" -Depth ($Depth + 1) -MaxDepth $MaxDepth -Count $Count -MaxNodes $MaxNodes -ViewMode $ViewMode -IncludeOffscreen $IncludeOffscreen -DetailLevel $DetailLevel -Traversal $Traversal
+        $childOut = Convert-Tree -Element $child -Path "$Path.$i" -Depth ($Depth + 1) -MaxDepth $MaxDepth -Count $Count -MaxNodes $MaxNodes -ViewMode $ViewMode -IncludeOffscreen $IncludeOffscreen -DetailLevel $DetailLevel -Traversal $Traversal -Owner $Owner
         if ($null -ne $childOut) { $childrenOut.Add($childOut) }
         if ($Count.Value -ge $MaxNodes -or $null -ne $Traversal.reason -or -not (Test-TreeBudget $Traversal)) { break }
         $child = $Traversal.walker.GetNextSibling($child, $Traversal.cache)
@@ -1321,6 +1348,7 @@ function Convert-Tree {
   }
   if ($Count.Value -ge $MaxNodes -and $null -eq $Traversal.reason) { $Traversal.reason = "maxNodes" }
   $info["children"] = @($childrenOut.ToArray())
+  $script:ObservationOwner = $previousOwner
   return $info
 }
 
@@ -1338,36 +1366,36 @@ function Resolve-Element {
     $ownerId = [uint32]0
     [void][WindowsComputerUseNative]::GetWindowThreadProcessId($handle, [ref]$ownerId)
     if (-not [WindowsComputerUseNative]::IsWindow($handle) -or $ownerId -ne $expectedOwner) { throw 'Window identity changed; refresh the window list.' }
+    if (Has-WindowTarget $InputObject) {
+      $requested = Get-ObservationWindow $InputObject
+      if ([int64]$requested.nativeWindowHandle -ne $handle.ToInt64()) { throw 'Element belongs to a different target window; re-observe before acting.' }
+    }
     return [System.Windows.Automation.AutomationElement]::FromHandle($handle)
   }
 
   # Preferred form: uia:rt:<n>-<n>-... resolved by RuntimeId (stable for the
   # life of the owning process, immune to UI re-layouts).
   if ($ElementId -match '^uia:rt:(.+)$') {
-    $rtParts = $Matches[1] -split '-'
-    if ($rtParts.Count -lt 2) { throw "Malformed runtime element id '$ElementId'." }
+    $runtimeText = $Matches[1]
+    if ($runtimeText -notmatch '^-?\d+(?:--?\d+)+$') { throw "Malformed runtime element id '$ElementId'." }
     # RuntimeId lookup bypasses view traversal, but the declared view filters
     # must still be validated here — an illegal viewMode has to fail exactly
     # like it does on the legacy path instead of being silently ignored.
     $null = Get-ViewMode $InputObject "control"
-    $rtArr = New-Object 'int[]' $rtParts.Count
-    for ($i = 0; $i -lt $rtParts.Count; $i++) { $rtArr[$i] = [int]$rtParts[$i] }
-    # Search the target window first, then the whole desktop as a fallback.
-    $roots = @()
+    $entry = $script:ElementRegistry[$ElementId]
+    if ($null -eq $entry -or ([DateTimeOffset]::Now.ToUnixTimeMilliseconds() - [int64]$entry.ts) -gt 300000) {
+      throw "Element '$ElementId' is stale or was not observed by this backend. Re-run snapshot/tree/find for fresh ids."
+    }
+    $owner = [uint32]0
+    [void][WindowsComputerUseNative]::GetWindowThreadProcessId([IntPtr]([int64]$entry.hwnd), [ref]$owner)
+    if (-not [WindowsComputerUseNative]::IsWindow([IntPtr]([int64]$entry.hwnd)) -or $owner -ne [uint32]$entry.processId) { throw 'Element owner changed; re-observe before acting.' }
     if (Has-WindowTarget $InputObject) {
-      $t = Invoke-Safe { Resolve-TargetWindow $InputObject } $null
-      if ($null -ne $t) { $roots += $t }
+      $target = Get-ObservationWindow $InputObject
+      if ([int64]$target.nativeWindowHandle -ne [int64]$entry.hwnd) { throw 'Element belongs to a different target window; re-observe before acting.' }
     }
-    $active = Invoke-Safe { Get-ScopeRoot "active_window" $InputObject } $null
-    if ($null -ne $active -and $roots -notcontains $active) { $roots += $active }
-    $rootEl = [System.Windows.Automation.AutomationElement]::RootElement
-    if ($roots -notcontains $rootEl) { $roots += $rootEl }
-    $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::RuntimeIdProperty, $rtArr)
-    foreach ($root in $roots) {
-      $found = Invoke-Safe { $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond) } $null
-      if ($null -ne $found) { return $found }
-    }
-    throw "Element '$ElementId' no longer exists (stale — the control was removed or its app restarted). Re-run snapshot/tree to get fresh ids."
+    $actualId = Invoke-Safe { @($entry.element.GetRuntimeId()) -join '-' } $null
+    if ($actualId -ne $runtimeText) { throw 'Element no longer exists; re-observe before acting.' }
+    return $entry.element
   }
 
   # Legacy form: uia:<active|root>.<index>.<index>... resolved by tree path.
@@ -1489,28 +1517,25 @@ function Type-Text {
   $position = New-Object WindowsComputerUseNative+POINT
   if (-not [WindowsComputerUseNative]::GetCursorPos([ref]$position)) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows input desktop is unavailable.' }
   Move-ToPoint -X $position.x -Y $position.y
-  $hadText = $false
-  $oldText = $null
-  try {
-    $hadText = [System.Windows.Forms.Clipboard]::ContainsText()
-    if ($hadText) { $oldText = [System.Windows.Forms.Clipboard]::GetText() }
-  } catch {
-    $hadText = $false
-  }
-
-  [System.Windows.Forms.Clipboard]::SetText($Text)
-  Start-Sleep -Milliseconds 50
-  [System.Windows.Forms.SendKeys]::SendWait("^v")
-  Start-Sleep -Milliseconds 80
-
-  if ($RestoreClipboard) {
-    try {
-      if ($hadText) {
-        [System.Windows.Forms.Clipboard]::SetText($oldText)
-      } else {
-        [System.Windows.Forms.Clipboard]::Clear()
+  $oldData = $null
+  # Fail before replacing the clipboard if its contents cannot be preserved.
+  if ($RestoreClipboard) { $rawData = [System.Windows.Forms.Clipboard]::GetDataObject()
+    if ($null -ne $rawData) {
+      $oldData = New-Object System.Windows.Forms.DataObject
+      foreach ($format in $rawData.GetFormats($false)) {
+        $oldData.SetData($format, $false, $rawData.GetData($format, $false))
       }
-    } catch { }
+    } }
+  try {
+    [System.Windows.Forms.Clipboard]::SetText($Text)
+    Start-Sleep -Milliseconds 50
+    [System.Windows.Forms.SendKeys]::SendWait('^v')
+    Start-Sleep -Milliseconds 80
+  } finally {
+    if ($RestoreClipboard) {
+      if ($null -ne $oldData) { [System.Windows.Forms.Clipboard]::SetDataObject($oldData, $true) }
+      else { [System.Windows.Forms.Clipboard]::Clear() }
+    }
   }
 }
 
@@ -1541,7 +1566,7 @@ function Convert-KeyChord {
   $encoded = if ($special.ContainsKey($lower)) {
     $special[$lower]
   } elseif ($main.Length -eq 1) {
-    $main.ToLowerInvariant()
+    if ($main -match '^[+^%~(){}\[\]]$') { '{' + $main + '}' } else { $main.ToLowerInvariant() }
   } else {
     "{" + $main.ToUpperInvariant() + "}"
   }
@@ -1549,7 +1574,7 @@ function Convert-KeyChord {
 }
 
 function Invoke-ElementPattern {
-  param([System.Windows.Automation.AutomationElement]$Element)
+  param([object]$Element)
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern) } $false) {
     $pattern.Invoke()
@@ -1651,7 +1676,7 @@ function Capture-Screenshot {
   $bx = $vs.Left; $by = $vs.Top; $bw = $vs.Width; $bh = $vs.Height
 
   if ($null -ne $WindowElement) {
-    $hwnd = Invoke-Safe { [int64]$WindowElement.Current.NativeWindowHandle } 0
+    $hwnd = if (Get-Prop $WindowElement 'nativeWindowHandle' 0) { [int64]$WindowElement.nativeWindowHandle } else { Invoke-Safe { [int64]$WindowElement.Current.NativeWindowHandle } 0 }
     $rect = $null
     if ($hwnd -and $hwnd -ne 0) { $rect = Get-ExtendedFrameBounds -Hwnd $hwnd }
     if ($null -eq $rect) { $rect = Convert-Rect (Invoke-Safe { $WindowElement.Current.BoundingRectangle } $null) }
@@ -1744,6 +1769,7 @@ function Capture-Screenshot {
     bytes = $bytes.Length
     method = $method
     bounds = [ordered]@{ x = $bx; y = $by; width = $bw; height = $bh }
+    imageScale = [Math]::Round($scale, 4)
   }
   if ($occludedPossible) { $meta["occludedPossible"] = $true }
   if ($windowCaptureFailed) { $meta["windowCaptureFailed"] = $true }
@@ -1790,6 +1816,11 @@ function Get-TreeResult {
   $budgetMs = [int](Get-Prop $InputObject "treeTimeoutMs" 5000)
   if ($budgetMs -lt 100 -or $budgetMs -gt 30000) { throw "treeTimeoutMs must be between 100 and 30000." }
   $window = Get-ObservationWindow $InputObject $Scope
+  $script:ObservationOwner = $window
+  $script:NativeOwners = @{}
+  if ($Scope -eq 'desktop') {
+    foreach ($native in (Get-NativeWindowList -IncludeInvisible $true -MaxWindows 4096)) { $script:NativeOwners[[string]$native.nativeWindowHandle] = $native }
+  }
   $responsive = Get-WindowResponsive $window
   $cache = New-ElementCacheRequest $detailLevel
   $walker = New-Object System.Windows.Automation.TreeWalker -ArgumentList (Get-ViewCondition $viewMode $includeOffscreen)
@@ -1806,7 +1837,7 @@ function Get-TreeResult {
       if (Test-TreeBudget $traversal) {
         $root = $root.GetUpdatedCache($cache)
         $prefix = if ($Scope -eq "desktop") { "root" } else { "active" }
-        $tree = Convert-Tree -Element $root -Path $prefix -Depth 0 -MaxDepth $MaxDepth -Count ([ref]$count) -MaxNodes $MaxNodes -ViewMode $viewMode -IncludeOffscreen $includeOffscreen -DetailLevel $detailLevel -Traversal $traversal
+        $tree = Convert-Tree -Element $root -Path $prefix -Depth 0 -MaxDepth $MaxDepth -Count ([ref]$count) -MaxNodes $MaxNodes -ViewMode $viewMode -IncludeOffscreen $includeOffscreen -DetailLevel $detailLevel -Traversal $traversal -Owner $window
       }
     } catch {
       $traversal.reason = "providerError"
@@ -1815,6 +1846,7 @@ function Get-TreeResult {
   }
   if ($null -ne $traversal.reason -and $traversal.reason -ne "targetUnresponsive") { $responsive = Get-WindowResponsive $window }
   $stopwatch.Stop()
+  $script:ObservationOwner = $null
   $result = [ordered]@{
     ok = $true; scope = $Scope; viewMode = $viewMode; includeOffscreen = $includeOffscreen
     detailLevel = $detailLevel; nodeCount = $count; truncated = ($null -ne $traversal.reason)
@@ -1871,8 +1903,7 @@ function Invoke-Action {
       if ($includeScreenshot) {
         $winEl = $null
         if ($captureWindow -and $treeResult.targetResponsive -ne $false) {
-          $winEl = Invoke-Safe { Resolve-TargetWindow $inputObject } $null
-          if ($null -eq $winEl -and $scope -ne "desktop") { $winEl = Invoke-Safe { Get-ScopeRoot $scope $inputObject } $null }
+          $winEl = Get-ObservationWindow $inputObject $scope
         }
         $treeResult.screenshot = Capture-Screenshot -WindowElement $winEl -MaxWidth $maxWidth
         if ($treeResult.screenshot.occludedPossible) {
@@ -1933,8 +1964,22 @@ function Invoke-Action {
         $y = [int](Get-Prop $inputObject "y" 0)
         Activate-TargetIfRequested $inputObject
         $point = New-Object System.Windows.Point($x, $y)
+        $nativePoint = New-Object WindowsComputerUseNative+POINT
+        $nativePoint.x = $x; $nativePoint.y = $y
+        $pointHwnd = [WindowsComputerUseNative]::GetAncestor([WindowsComputerUseNative]::WindowFromPoint($nativePoint), 2).ToInt64()
+        $ownerWindow = $null
+        foreach ($native in (Get-NativeWindowList -IncludeInvisible $true -MaxWindows 4096)) {
+          if ([int64]$native.nativeWindowHandle -eq $pointHwnd) { $ownerWindow = $native; break }
+        }
+        if (Has-WindowTarget $inputObject) {
+          $requested = Get-ObservationWindow $inputObject
+          if ($pointHwnd -ne [int64]$requested.nativeWindowHandle) { throw 'Point is outside or occluded by another target window.' }
+        }
         $el = [System.Windows.Automation.AutomationElement]::FromPoint($point)
-        return ([ordered]@{ ok = $true; point = [ordered]@{ x = $x; y = $y }; element = (Convert-ElementInfo -Element $el -Id $null -Depth 0 -DetailLevel $detailLevel) })
+        $script:ObservationOwner = $ownerWindow
+        try {
+          return ([ordered]@{ ok = $true; point = [ordered]@{ x = $x; y = $y }; element = (Convert-ElementInfo -Element $el -Id $null -Depth 0 -DetailLevel $detailLevel) })
+        } finally { $script:ObservationOwner = $null }
       }
     }
     "click" {
@@ -1951,7 +1996,7 @@ function Invoke-Action {
 
       # Homing: if this window was observed before and moved, compensate.
       if ((Has-WindowTarget $inputObject) -and ($null -eq $point.elementId)) {
-        $target = Resolve-TargetWindow $inputObject
+        $target = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $target
         $homed = Home-Point -X $point.x -Y $point.y -Target $target
         $point.x = $homed.x
@@ -1987,6 +2032,7 @@ function Invoke-Action {
         return $result
       }
 
+      Assert-TargetIsForeground $inputObject
       Click-At -X $point.x -Y $point.y -Button $button -Count 1
       $result["method"] = "sendinput"
       return $result
@@ -1999,7 +2045,7 @@ function Invoke-Action {
       $result = [ordered]@{ ok = $true; action = "double_click"; x = $point.x; y = $point.y; button = $button; elementId = $point.elementId }
       Activate-TargetIfRequested $inputObject
       if ((Has-WindowTarget $inputObject) -and ($null -eq $point.elementId)) {
-        $target = Resolve-TargetWindow $inputObject
+        $target = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $target
         $homed = Home-Point -X $point.x -Y $point.y -Target $target
         $point.x = $homed.x
@@ -2021,6 +2067,7 @@ function Invoke-Action {
         $result["note"] = "Background double-click queued, delivery unverified (WM_LBUTTONDBLCLK). Retry with dispatch:'foreground' if nothing happened."
         return $result
       }
+      Assert-TargetIsForeground $inputObject
       Click-At -X $point.x -Y $point.y -Button $button -Count 2
       $result["method"] = "sendinput"
       return $result
@@ -2031,7 +2078,7 @@ function Invoke-Action {
       $result = [ordered]@{ ok = $true; action = "move"; x = $point.x; y = $point.y; elementId = $point.elementId }
       Activate-TargetIfRequested $inputObject
       if ((Has-WindowTarget $inputObject) -and ($null -eq $point.elementId)) {
-        $target = Resolve-TargetWindow $inputObject
+        $target = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $target
         $homed = Home-Point -X $point.x -Y $point.y -Target $target
         $point.x = $homed.x
@@ -2051,7 +2098,7 @@ function Invoke-Action {
       # Homing: shift the whole path if the target window moved since the
       # coordinates were observed.
       if (Has-WindowTarget $inputObject) {
-        $target = Resolve-TargetWindow $inputObject
+        $target = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $target
         $homed = Home-Point -X ([int]$path[0].x) -Y ([int]$path[0].y) -Target $target
         if ($null -ne $homed.homed) {
@@ -2064,15 +2111,19 @@ function Invoke-Action {
       }
       $first = $path[0]
       $last = $path[$path.Count - 1]
-      [void][WindowsComputerUseNative]::SetCursorPos([int]$first.x, [int]$first.y)
+      Assert-TargetIsForeground $inputObject
+      Move-ToPoint -X ([int]$first.x) -Y ([int]$first.y)
       Start-Sleep -Milliseconds 50
-      [void][WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32]$flags[0], 0)
-      foreach ($pt in $path) {
-        [void][WindowsComputerUseNative]::SetCursorPos([int]$pt.x, [int]$pt.y)
-        Start-Sleep -Milliseconds 25
+      try {
+        if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32]$flags[0], 0) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected mouse input.' }
+        foreach ($pt in $path) {
+          Move-ToPoint -X ([int]$pt.x) -Y ([int]$pt.y)
+          Start-Sleep -Milliseconds 25
+        }
+      } finally {
+        if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32]$flags[1], 0) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected mouse release.' }
       }
-      [void][WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32]$flags[1], 0)
-      return ([ordered]@{ ok = $true; action = "drag"; points = $path.Count; button = $button })
+      return ([ordered]@{ ok = $true; action = "drag"; points = $path.Count; button = $button; homed = if ($null -ne $homed) { $homed.homed } else { $null } })
     }
     "scroll" {
       [void](Test-Failsafe)
@@ -2081,23 +2132,24 @@ function Invoke-Action {
       $deltaX = [int](Get-Prop $inputObject "deltaX" 0)
       Activate-TargetIfRequested $inputObject
       if ((Has-WindowTarget $inputObject) -and ($null -eq $point.elementId)) {
-        $target = Resolve-TargetWindow $inputObject
+        $target = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $target
         $homed = Home-Point -X $point.x -Y $point.y -Target $target
         $point.x = $homed.x
         $point.y = $homed.y
       }
       if ($deltaY -ne 0 -or $deltaX -ne 0) {
-        [void][WindowsComputerUseNative]::SetCursorPos($point.x, $point.y)
+        Assert-TargetIsForeground $inputObject
+        Move-ToPoint -X $point.x -Y $point.y
         Start-Sleep -Milliseconds 30
         if ($deltaY -ne 0) {
-          [void][WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32][WindowsComputerUseNative]::MOUSEEVENTF_WHEEL, (-1 * $deltaY))
+          if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32][WindowsComputerUseNative]::MOUSEEVENTF_WHEEL, (-1 * $deltaY)) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected scroll input.' }
         }
         if ($deltaX -ne 0) {
-          [void][WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32][WindowsComputerUseNative]::MOUSEEVENTF_HWHEEL, $deltaX)
+          if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32][WindowsComputerUseNative]::MOUSEEVENTF_HWHEEL, $deltaX) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected scroll input.' }
         }
       }
-      return ([ordered]@{ ok = $true; action = "scroll"; x = $point.x; y = $point.y; deltaX = $deltaX; deltaY = $deltaY; elementId = $point.elementId })
+      return ([ordered]@{ ok = $true; action = "scroll"; x = $point.x; y = $point.y; deltaX = $deltaX; deltaY = $deltaY; elementId = $point.elementId; homed = if ($null -ne $homed) { $homed.homed } else { $null } })
     }
     "type_text" {
       [void](Test-Failsafe)
@@ -2127,9 +2179,13 @@ function Invoke-Action {
       $focusedControl = $null
       $target = $null
       if (Has-WindowTarget $inputObject) {
-        $target = Resolve-TargetWindow $inputObject
+        $target = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $target
-        $focusedControl = Focus-TextControl $target
+        if ((Get-Prop $inputObject 'focusMode' 'preserve') -eq 'main') {
+          $uiaTarget = Resolve-TargetWindow $inputObject
+          $focusedControl = Focus-TextControl $uiaTarget
+          if ($null -eq $focusedControl) { throw 'Could not focus the requested main text control; no text sent.' }
+        }
       }
       $result = [ordered]@{ ok = $true; action = "type_text"; length = $text.Length; focusedControl = $focusedControl }
       if ($method -eq "sendinput") {
@@ -2147,7 +2203,7 @@ function Invoke-Action {
       # into, so the model gets evidence instead of a blind "ok". (Skipped for
       # sendinput on password fields, which deliberately hide their value.)
       if ($method -ne "sendinput" -and $null -ne $focusedControl -and $null -ne $target) {
-        $verify = Get-BestTextControl $target
+        $verify = Get-BestTextControl $uiaTarget
         if ($null -ne $verify) {
           $val = Get-ValueText $verify
           if ($null -ne $val) { $result["verifyValue"] = if ($val.Length -gt 200) { $val.Substring(0, 200) + "..." } else { $val } }
@@ -2160,7 +2216,7 @@ function Invoke-Action {
       $dispatch = [string](Get-Prop $inputObject "dispatch" "foreground")
       $keys = @(Get-Prop $inputObject "keys" @())
       if (Has-WindowTarget $inputObject) {
-        $ktarget = Resolve-TargetWindow $inputObject
+        $ktarget = Get-ObservationWindow $inputObject
         Assert-WindowIdentity $inputObject $ktarget
       }
       if ($dispatch -eq "background") {
@@ -2234,10 +2290,9 @@ function Invoke-Action {
         $result["warning"] = "The target window is unresponsive; activation was skipped. Do not retry tree or input calls until the target recovers."
         return $result
       }
-      $el = Resolve-TargetWindow $inputObject
-      $result.activated = [bool](Set-WindowForeground $el)
-      Update-WindowCache $el
-      Update-WindowIdentity $inputObject $el
+      $result.activated = [bool](Set-WindowForeground $window)
+      Update-WindowCache $window
+      Update-WindowIdentity $inputObject $window
       if (-not $result.activated) {
         $result["targetResponsive"] = Get-WindowResponsive $window
         $result["warning"] = if ($result.targetResponsive) { "The window could not be brought to the foreground (Windows foreground lock)." } else { "The target window became unresponsive; avoid repeated activation, tree or input calls." }
@@ -2269,33 +2324,38 @@ function Invoke-Action {
       })
     }
     "wait_for" {
-      # Server-side polling: wait until a window appears/disappears (or
-      # timeout). Saves the model from burning round-trips on sleeps.
-      $title = [string](Get-Prop $inputObject "windowTitle" "")
-      if ([string]::IsNullOrWhiteSpace($title)) { throw "windowTitle is required for wait_for." }
-      $appear = [bool](Get-Prop $inputObject "appear" $true)
-      $timeoutMs = [int](Get-Prop $inputObject "timeoutMs" 5000)
-      $intervalMs = [int](Get-Prop $inputObject "intervalMs" 250)
-      if ($intervalMs -lt 50) { $intervalMs = 50 }
-      if ($timeoutMs -lt 100) { $timeoutMs = 100 }
-      $start = [DateTimeOffset]::Now.ToUnixTimeMilliseconds()
+      $condition = [string](Get-Prop $inputObject 'condition' 'window')
+      $query = [string](Get-Prop $inputObject 'query' '')
+      if ($condition -eq 'window' -and -not (Has-WindowTarget $inputObject)) { throw 'Window wait requires a window target.' }
+      if ($condition -ne 'window' -and [string]::IsNullOrWhiteSpace($query)) { throw 'Text/element wait requires query.' }
+      $appear = [bool](Get-Prop $inputObject 'appear' $true)
+      $timeoutMs = [int](Get-Prop $inputObject 'timeoutMs' 5000)
+      $intervalMs = [int](Get-Prop $inputObject 'intervalMs' 250)
+      $watch = [Diagnostics.Stopwatch]::StartNew()
       while ($true) {
         $found = $false
-        $root = [System.Windows.Automation.AutomationElement]::RootElement
-        $children = Get-Children -Element $root -ViewMode "control" -IncludeOffscreen $true
-        for ($i = 0; $i -lt $children.Count; $i++) {
-          $name = Invoke-Safe { $children.Item($i).Current.Name } ""
-          if (($name + "").IndexOf($title, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { $found = $true; break }
+        $conclusive = $true
+        if ($condition -eq 'window') {
+          foreach ($info in (Get-NativeWindowList -IncludeInvisible $true -MaxWindows 4096)) {
+            if (Test-TargetMatch $info $inputObject) { $found=$true; break }
+          }
+        } elseif ($condition -eq 'text') {
+          $observationArgs = [pscustomobject]@{scope=(Get-Prop $inputObject 'scope' 'active_window');windowTitle=(Get-Prop $inputObject 'windowTitle' $null);processId=(Get-Prop $inputObject 'processId' $null);nativeWindowHandle=(Get-Prop $inputObject 'nativeWindowHandle' $null);query=$query;resolveControl=$false;activate=$false}
+          $observation = Invoke-Action 'ocr' $observationArgs
+          $found = $observation.matched.Count -gt 0
+          $conclusive = -not [bool]$observation.occludedPossible
+        } else {
+          $budget = [Math]::Max(100, [Math]::Min([int](Get-Prop $inputObject 'treeTimeoutMs' 1000), $timeoutMs - [int]$watch.ElapsedMilliseconds))
+          $observationArgs = [pscustomobject]@{scope=(Get-Prop $inputObject 'scope' 'active_window');windowTitle=(Get-Prop $inputObject 'windowTitle' $null);processId=(Get-Prop $inputObject 'processId' $null);nativeWindowHandle=(Get-Prop $inputObject 'nativeWindowHandle' $null);query=$query;controlType=(Get-Prop $inputObject 'controlType' '');viewMode=(Get-Prop $inputObject 'viewMode' 'control');includeOffscreen=(Get-Prop $inputObject 'includeOffscreen' $false);treeTimeoutMs=$budget;maxDepth=(Get-Prop $inputObject 'maxDepth' 8);maxNodes=(Get-Prop $inputObject 'maxNodes' 1200);maxResults=1}
+          $observation = Invoke-Action 'find' $observationArgs
+          $found = $observation.results.Count -gt 0
+          $conclusive = -not $observation.truncated
         }
-        $hit = if ($appear) { $found } else { -not $found }
-        $elapsed = [int]([DateTimeOffset]::Now.ToUnixTimeMilliseconds() - $start)
-        if ($hit) {
-          return ([ordered]@{ ok = $true; action = "wait_for"; found = $found; waitedMs = $elapsed })
+        $hit = if ($appear) { $found -and ($condition -ne 'text' -or $conclusive) } else { -not $found -and $conclusive }
+        if ($hit -or $watch.ElapsedMilliseconds -ge $timeoutMs) {
+          return ([ordered]@{ok=$true;action='wait_for';condition=$condition;found=$found;conclusive=$conclusive;timedOut=(-not $hit);waitedMs=[int]$watch.ElapsedMilliseconds;verification=if ($hit) {'observed'} else {'unconfirmed'}})
         }
-        if ($elapsed -ge $timeoutMs) {
-          return ([ordered]@{ ok = $true; action = "wait_for"; found = $found; timedOut = $true; waitedMs = $elapsed })
-        }
-        Start-Sleep -Milliseconds $intervalMs
+        Start-Sleep -Milliseconds ([Math]::Min($intervalMs, [Math]::Max(1,$timeoutMs-[int]$watch.ElapsedMilliseconds)))
       }
     }
     "close_window" {
@@ -2315,8 +2375,8 @@ function Invoke-Action {
       $x = Get-Prop $inputObject "x" $null
       $y = Get-Prop $inputObject "y" $null
       if ($null -eq $x -or $null -eq $y) { throw "x and y are required for move_window." }
-      $el = Resolve-TargetWindow $inputObject
-      $hwnd = Invoke-Safe { [int64]$el.Current.NativeWindowHandle } 0
+      $el = Get-ObservationWindow $inputObject
+      $hwnd = [int64]$el.nativeWindowHandle
       if (-not ($hwnd -and $hwnd -ne 0)) { throw "No window handle found for the target." }
       $flags = [uint32]([WindowsComputerUseNative]::SWP_NOSIZE -bor [WindowsComputerUseNative]::SWP_NOZORDER)
       if (-not [bool](Get-Prop $inputObject "activate" $false)) {
@@ -2336,6 +2396,18 @@ function Invoke-Action {
       }
       return $result
     }
+    "screenshot" {
+      $scope = Get-Prop $inputObject 'scope' 'active_window'
+      $window = Get-ObservationWindow $inputObject $scope
+      if ($null -ne $window) {
+        if ([bool](Get-Prop $inputObject 'activate' $false) -and -not (Set-WindowForeground $window)) { throw 'Target activation refused; screenshot not taken.' }
+        Update-WindowCache $window
+        Update-WindowIdentity $inputObject $window
+      }
+      $responsive = Get-WindowResponsive $window
+      $shot = Capture-Screenshot -WindowElement $(if ($responsive -eq $false) { $null } else { $window }) -MaxWidth ([int](Get-Prop $inputObject 'maxWidth' 1600))
+      return ([ordered]@{ok=$true;action='screenshot';source='win32';targetResponsive=$responsive;screenshot=$shot;degraded=($responsive -eq $false)})
+    }
     "ocr" {
       # OCR the target window (or the whole desktop) — the fallback for
       # UIA-blind apps (games, self-drawn Tk/Qt, RDP, canvases). Word boxes
@@ -2348,7 +2420,7 @@ function Invoke-Action {
       $winEl = $null
       $activationRefused = $false
       if (Has-WindowTarget $inputObject) {
-        $winEl = Resolve-TargetWindow $inputObject
+        $winEl = Get-ObservationWindow $inputObject $scope
         # Capture happens on screen pixels: an occluded window would OCR the
         # overlapping content, so honour activate:true before capturing. A
         # refused activation degrades the capture but is not fatal — warn.
@@ -2356,7 +2428,12 @@ function Invoke-Action {
           $activationRefused = $true
         }
       } elseif ($scope -ne "desktop") {
-        $winEl = Get-ScopeRoot $scope $inputObject
+        $winEl = Get-ObservationWindow $inputObject $scope
+      }
+      if ($null -ne $winEl) {
+        if ((Get-WindowResponsive $winEl) -eq $false) { throw 'Target is unresponsive; skip OCR and inspect a desktop screenshot.' }
+        Update-WindowCache $winEl
+        Update-WindowIdentity $inputObject $winEl
       }
       $shot = Capture-Screenshot -WindowElement $winEl -MaxWidth $maxWidth
       if ($shot.windowCaptureFailed) { throw "OCR target has no capturable surface (minimized/hidden?). Restore the window and retry." }
@@ -2391,7 +2468,8 @@ function Invoke-Action {
           $wx = [int]($hit.boundingBox.x + [int]($hit.boundingBox.width / 2))
           $wy = [int]($hit.boundingBox.y + [int]($hit.boundingBox.height / 2))
           $ctl = $null
-          $el = Invoke-Safe { [System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($wx, $wy))) } $null
+          $el = $null
+          if ([bool](Get-Prop $inputObject 'resolveControl' $false)) { $el = Invoke-Safe { [System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($wx, $wy))) } $null }
           if ($null -ne $el) {
             $ctl = [ordered]@{
               controlType = Get-ControlTypeName (Invoke-Safe { $el.Current.ControlType } $null)
@@ -2401,7 +2479,7 @@ function Invoke-Action {
               boundingBox = Convert-Rect (Invoke-Safe { $el.Current.BoundingRectangle } $null)
             }
           }
-          $matched += [ordered]@{ line = $lineText; word = [ordered]@{ text = $hit.text; x = $wx; y = $wy }; boundingBox = $hit.boundingBox; control = $ctl }
+          $matched += [ordered]@{ source = "ocr"; line = $lineText; word = [ordered]@{ text = $hit.text; x = $wx; y = $wy }; boundingBox = $hit.boundingBox; control = $ctl }
         }
       }
       $result = [ordered]@{
@@ -2413,6 +2491,11 @@ function Invoke-Action {
         imageBounds = $shot.bounds
         source = if ($winEl -ne $null) { "window" } else { "desktop" }
       }
+      $result['coordinateSpace'] = 'screen'
+      $result['imageScale'] = $scale
+      $result['captureMethod'] = $shot.method
+      $result['occludedPossible'] = $shot.occludedPossible
+      if ([bool](Get-Prop $inputObject 'includeScreenshot' $false)) { $result['screenshot'] = $shot }
       if ($query.Length -gt 0) {
         $result["query"] = $query
         $result["matched"] = $matched

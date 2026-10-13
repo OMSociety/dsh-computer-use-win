@@ -15,7 +15,7 @@ fixture.stderr.on('data',b=>stderr+=b);
 fixture.stdout.on('data',b=>{buffer+=b;let e;while((e=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,e);buffer=buffer.slice(e+1);try{const r=JSON.parse(line);if(r.ready)ready=r;if(r.pong)pongs.push(r.pong);}catch{}}});
 const clients=[],results=[];
 async function makeClient(root,powershell,label){
-  const temp=path.join(artifacts,label+'-'+powershell.replaceAll('.','-'));
+  const temp=path.join(artifacts,label+'-'+path.basename(powershell).replaceAll('.','-'));
   await mkdir(temp,{recursive:true});
   const client=new McpTestClient(process.execPath,[path.join(root,'mcp/server.mjs')],{env:{...env,TEMP:temp,TMP:temp,WINDOWS_CU_POWERSHELL:powershell}});
   clients.push(client);await client.init();return client;
