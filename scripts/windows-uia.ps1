@@ -1921,7 +1921,10 @@ function Invoke-Action {
   switch ($Action) {
     "health" {
       $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
-      $active = Get-ScopeRoot "active_window"
+      # Health checks backend availability independently of any application's
+      # UIA provider. Reading the foreground provider here can wedge a health
+      # request even though native enumeration/capture remain available.
+      $active = Get-ObservationWindow ([pscustomobject]@{})
       Update-WindowCache $active
       return ([ordered]@{
         ok = $true
@@ -1936,7 +1939,9 @@ function Invoke-Action {
         ocr = "lazy"
         homing = $true
         failsafe = ([string]$env:WCU_FAILSAFE -ne '0')
-        activeWindow = Convert-ElementInfo -Element $active -Id "uia:active" -Depth 0
+        activeWindow = $active
+        uiAutomationProviderChecked = $false
+        targetResponsive = Get-WindowResponsive $active
         virtualScreen = [ordered]@{ x = $screen.Left; y = $screen.Top; width = $screen.Width; height = $screen.Height }
       })
     }

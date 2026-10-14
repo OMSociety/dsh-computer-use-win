@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "generator": "maintain-file-logs",
+  "revision": 1,
+  "entries": [
+    {
+      "id": "feec6b28-9704-4e11-95bb-54673b3d1f8d",
+      "summary": "通过宿主浏览器模块注册中英文工具模式卡片；编辑暂存，保存写入设置。",
+      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
+      "tags": [],
+      "locators": [
+        {
+          "type": "literal",
+          "value": "settings.plugin.item"
+        }
+      ],
+      "generation": {
+        "reason": "0.4.1 修复与验证",
+        "method": "本次任务编写",
+        "created_at": null,
+        "source": "本次工具操作记录"
+      },
+      "derived_from": [],
+      "verification": {
+        "status": "partial",
+        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
+        "fingerprint": "stat:3228:1791998507897671500"
+      },
+      "child_index": null,
+      "path": "client.js",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:3228:1791998507897671500",
+        "size_bytes": 3228,
+        "mtime_ns": 1791998507897671500
+      }
+    },
+    {
+      "id": "09707e30-c9b8-4caa-9b2a-a054853a933c",
+      "summary": "DSH 官方 MCP 桥适配器，注册持久化工具模式并串行重载子插件。",
+      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
+      "tags": [],
+      "locators": [
+        {
+          "type": "symbol",
+          "value": "SettingsConfig"
+        }
+      ],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "partial",
+        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
+        "fingerprint": "stat:2970:1791998507896670900"
+      },
+      "child_index": null,
+      "path": "dsh-plugin.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:2970:1791998507896670900",
+        "size_bytes": 2970,
+        "mtime_ns": 1791998507896670900
+      }
+    },
+    {
+      "id": "47f87530-8b58-42a1-8a15-e2e965ade7a0",
+      "summary": "现有业务文件；本轮未复核完整正文和原始生成过程。",
+      "read_when": "需要时打开原文件核实。",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": null,
+        "fingerprint": "stat:52035:1791949105748102500"
+      },
+      "child_index": null,
+      "path": "server.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:52035:1791949105748102500",
+        "size_bytes": 52035,
+        "mtime_ns": 1791949105748102500
+      }
+    }
+  ]
+}

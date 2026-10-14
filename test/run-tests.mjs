@@ -14,6 +14,7 @@ if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `arti
 const suites = [
   ['source-encoding', process.execPath, ['test/source-encoding.mjs']],
   ['tool-context', process.execPath, ['test/tool-context.mjs']],
+  ['client-settings-contract', process.execPath, ['test/client-settings-contract.mjs']],
   ['selftest', process.execPath, ['mcp/server.mjs', '--self-test']],
   ['mcp-roundtrip', process.execPath, ['test/mcp-test.mjs', 'mcp/server.mjs', 'windows_computer_use_wait', '{"milliseconds":1}']],
   ['profile-resolution', process.execPath, ['test/profile-resolution.mjs']],
@@ -23,6 +24,7 @@ const suites = [
   ['activation-cancellation', process.execPath, ['test/activation-cancellation.mjs']],
   ['native-window-discovery', process.execPath, ['test/native-window-discovery.mjs']],
   ['native-window-contract', powershell, ['-NoProfile', '-File', 'test/native-window-contract.ps1']],
+  ['native-health-contract', powershell, ['-NoProfile', '-File', 'test/native-health-contract.ps1']],
   ['window-capture-contract', powershell, ['-NoProfile', '-File', 'test/window-capture-contract.ps1']],
   ['uia-cache-contract', powershell, ['-NoProfile', '-File', 'test/uia-cache-contract.ps1']],
   ['uia-native-smoke', process.execPath, ['test/uia-native-smoke.mjs', path.join(root, 'uia-native-smoke')]],

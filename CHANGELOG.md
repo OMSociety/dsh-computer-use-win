@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1 — 2026-10-15
+
+- Complete the promised DSH settings entry with a bilingual browser card under Configurable plugins. Stage edits until Save, persist the mode through the host settings service, reload the official MCP bridge, and restore the saved preference after restart. Preserve manual entry configuration when no settings provider is mounted.
+- Add a real Chromium rendering/event regression for the shipped card and verify durable settings with the official file-backed provider. React remains test-only; the browser consumes DSH's shared React runtime.
+
+- Make health independent of the foreground application's UIA provider. Return native HWND/PID/window metadata and a bounded native responsiveness probe instead of UIA element properties.
+- Report `uiAutomationProviderChecked:false` explicitly. A hung target or missing foreground window no longer turns backend availability into a provider query. UIA capability flags and existing action parameters remain unchanged.
+- Add a regression with UIA functions that deliberately fail, plus hung/missing/disappeared window cases. The historical CI health timeout's exact cause remains unestablished; this fixes a reproduced coupling risk rather than claiming that old timing was reconstructed.
+
 ## 0.4.0 — 2026-10-14
 
 - Add a DSH plugin configuration with Lite/Full modes. Lite starts with nine common desktop tools plus discovery; Full exposes all 23 desktop tools plus discovery. Standalone MCP defaults to Full for compatibility.

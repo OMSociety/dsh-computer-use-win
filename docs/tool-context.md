@@ -2,7 +2,7 @@
 
 ## 简体中文
 
-DSH 默认精简模式，插件配置的 `mode` 可选 `lite` 或 `full`，由宿主的配置表单展示。保存后重载插件/MCP worker。当前插件使用自己的配置适配器，仍调用官方 `@deepseek-ai/dsh-mcp-client`，不再直接把桥的全部底层连接参数当作用户配置。移除早期 `mcp-dsh-computer-use-win` 完整配置覆盖，避免旧配置替代新版模式设置。
+DSH 默认精简模式。在“设置 → 插件 → 可配置插件”的 Windows 桌面操作卡片中选择精简或全能，并点击保存。选择后未保存时不会写入配置，取消修改可恢复已保存值。模式保存在宿主 `windows-computer-use` 设置命名空间，覆盖插件条目的 `mode` 基值；保存会重载 MCP worker，临时加载列表复位，重启后仍读取已保存的模式。当前插件使用自己的配置适配器，仍调用官方 `@deepseek-ai/dsh-mcp-client`，不再直接把桥的全部底层连接参数当作用户配置。移除早期 `mcp-dsh-computer-use-win` 完整配置覆盖，避免旧配置替代新版模式设置。
 
 精简模式有九个常用工具：`list_windows`、`find`、`click`、`scroll`、`type_text`、`keypress`、`ocr`、`screenshot`、`wait_for`，另有发现工具 `windows_computer_use_tools`。全能模式有原来的 23 项桌面工具及发现工具。原工具名称、调用参数和后台实现都保留。
 
@@ -26,7 +26,7 @@ DSH 默认精简模式，插件配置的 `mode` 可选 `lite` 或 `full`，由�
 
 ## English
 
-The DSH configuration adapter exposes `mode: lite | full`, defaulting to Lite. Save and reload the plugin/MCP worker. Remove legacy complete `mcp-dsh-computer-use-win` overrides before upgrading. The adapter delegates transport, lifecycle and cancellation to the official MCP bridge.
+The Windows computer use card under Settings → Plugins → Configurable plugins exposes Lite/Full. Selection is staged until Save; Discard restores the saved value. The host stores the mode in the `windows-computer-use` settings namespace, over the entry configuration base. Save reloads the MCP worker; the saved mode survives restart. Remove legacy complete `mcp-dsh-computer-use-win` overrides before upgrading. The adapter delegates transport, lifecycle and cancellation to the official MCP bridge.
 
 Lite initially advertises nine common desktop tools plus `windows_computer_use_tools`. Full advertises all original 23 desktop tools plus discovery. `list` returns a concise capability catalogue; `describe` returns one original full contract without enabling it or starting PowerShell. `enable` advertises named tools; call them by their original names. `disable` removes their definitions, and `reset` restores the startup set. State is worker-local and does not overwrite the user's saved mode.
 

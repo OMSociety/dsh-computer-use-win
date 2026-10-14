@@ -46,7 +46,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 ### 工具模式与上下文
 
-默认使用**精简模式**。在该插件的 DSH 配置中找到 **工具模式 / Tool mode**，选择精简或全能，保存并重载插件。已安装的旧版完整 MCP 配置覆盖应先移除。
+默认使用**精简模式**。打开 **设置 → 插件 → 可配置插件 → Windows 桌面操作**，选择精简或全能并保存；MCP worker 会重新加载。已安装的旧版完整 MCP 配置覆盖应先移除。
 
 | 模式 | 模型初始可见的工具 | 工具定义字符数 |
 |---|---|---|
@@ -275,7 +275,7 @@ If you added a dedicated full configuration override for [#13](https://github.co
 
 ### Tool modes and context
 
-**Lite is the default.** In this plugin's DSH configuration, choose **Tool mode**, save, and reload the plugin. Remove legacy full MCP configuration overrides first.
+**Lite is the default.** Open **Settings → Plugins → Configurable plugins → Windows computer use**, choose **Tool mode**, and save. The MCP worker reloads. Remove legacy full MCP configuration overrides first.
 
 | Mode | Initially visible tools | Tool-definition characters |
 |---|---|---|

@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "generator": "maintain-file-logs",
+  "revision": 1,
+  "entries": [
+    {
+      "id": "936ac471-edb7-4c26-a31d-700f3b88068b",
+      "summary": "排除目录日志与日志锁，避免将开发导航文件发布到 npm。",
+      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
+      "tags": [],
+      "locators": [
+        {
+          "type": "literal",
+          "value": "FILE_LOG.md"
+        }
+      ],
+      "generation": {
+        "reason": "0.4.1 修复与验证",
+        "method": "本次任务编写",
+        "created_at": null,
+        "source": "本次工具操作记录"
+      },
+      "derived_from": [],
+      "verification": {
+        "status": "partial",
+        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
+        "fingerprint": "stat:78:1791999264430205800"
+      },
+      "child_index": null,
+      "path": ".npmignore",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:78:1791999264430205800",
+        "size_bytes": 78,
+        "mtime_ns": 1791999264430205800
+      }
+    },
+    {
+      "id": "8ef1492a-b757-440b-be5c-f31f63c865e3",
+      "summary": "现有业务文件；本轮未复核完整正文和原始生成过程。",
+      "read_when": "需要时打开原文件核实。",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": null,
+        "fingerprint": "stat:17000:1791949869594281700"
+      },
+      "child_index": null,
+      "path": "dev-notes.md",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:17000:1791949869594281700",
+        "size_bytes": 17000,
+        "mtime_ns": 1791949869594281700
+      }
+    },
+    {
+      "id": "113c6940-ab4a-4064-81bb-50bd1025b684",
+      "summary": "精简／全能模式、宿主设置路径、保存与按需工具加载说明。",
+      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
+      "tags": [],
+      "locators": [
+        {
+          "type": "literal",
+          "value": "工具模式"
+        }
+      ],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "partial",
+        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
+        "fingerprint": "stat:4775:1791999264847745700"
+      },
+      "child_index": null,
+      "path": "tool-context.md",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:4775:1791999264847745700",
+        "size_bytes": 4775,
+        "mtime_ns": 1791999264847745700
+      }
+    },
+    {
+      "id": "5eb22a76-bc91-4950-a7b1-bbebba494c1f",
+      "summary": "业务子目录，尚未索引。",
+      "read_when": "需要时打开原文件核实。",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": null,
+        "fingerprint": "directory"
+      },
+      "child_index": null,
+      "path": "wiki",
+      "kind": "directory",
+      "metadata": {
+        "fingerprint": "directory"
+      }
+    }
+  ]
+}
