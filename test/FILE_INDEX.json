@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "maintain-file-logs",
-  "revision": 2,
+  "revision": 3,
   "entries": [
     {
       "id": "6a0edc82-555f-4cd9-a779-b3aa66b30402",
@@ -166,15 +166,15 @@
       "verification": {
         "status": "partial",
         "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:5216:1791998927421905800"
+        "fingerprint": "stat:5997:1791999807618360400"
       },
       "child_index": null,
       "path": "client-settings-electron.cjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:5216:1791998927421905800",
-        "size_bytes": 5216,
-        "mtime_ns": 1791998927421905800
+        "fingerprint": "stat:5997:1791999807618360400",
+        "size_bytes": 5997,
+        "mtime_ns": 1791999807618360400
       }
     },
     {
