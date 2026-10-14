@@ -1,8 +1,28 @@
 {
   "schema_version": 1,
   "generator": "maintain-file-logs",
-  "revision": 2,
+  "revision": 3,
   "entries": [
+    {
+      "id": "7d6d57ef-3d68-4d09-a663-d532c155e288",
+      "summary": "回归套件与测试夹具。",
+      "read_when": "先读子索引，再定位原文件。",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "partial",
+        "evidence": "已登记直接业务子项，未递归读取所有正文。",
+        "fingerprint": "directory"
+      },
+      "child_index": ".github/FILE_LOG.md",
+      "path": ".github",
+      "kind": "directory",
+      "metadata": {
+        "fingerprint": "directory"
+      }
+    },
     {
       "id": "ce0c0534-9b8b-4ed7-9e25-62f73b267ab0",
       "summary": "忽略依赖、已有缓存与目录日志事务临时文件。",
@@ -46,15 +66,15 @@
       "verification": {
         "status": "partial",
         "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:15766:1791999264847745700"
+        "fingerprint": "stat:16136:1792000291657932300"
       },
       "child_index": null,
       "path": "CHANGELOG.md",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:15766:1791999264847745700",
-        "size_bytes": 15766,
-        "mtime_ns": 1791999264847745700
+        "fingerprint": "stat:16136:1792000291657932300",
+        "size_bytes": 16136,
+        "mtime_ns": 1792000291657932300
       }
     },
     {
@@ -117,15 +137,15 @@
       "verification": {
         "status": "partial",
         "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:28515:1791999264846118800"
+        "fingerprint": "stat:28515:1792000220675622600"
       },
       "child_index": null,
       "path": "README.en.md",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:28515:1791999264846118800",
+        "fingerprint": "stat:28515:1792000220675622600",
         "size_bytes": 28515,
-        "mtime_ns": 1791999264846118800
+        "mtime_ns": 1792000220675622600
       }
     },
     {
@@ -144,15 +164,15 @@
       "verification": {
         "status": "partial",
         "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:28515:1791999264844286500"
+        "fingerprint": "stat:28515:1792000220673652600"
       },
       "child_index": null,
       "path": "README.md",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:28515:1791999264844286500",
+        "fingerprint": "stat:28515:1792000220673652600",
         "size_bytes": 28515,
-        "mtime_ns": 1791999264844286500
+        "mtime_ns": 1792000220673652600
       }
     },
     {

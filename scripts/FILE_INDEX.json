@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "maintain-file-logs",
-  "revision": 2,
+  "revision": 3,
   "entries": [
     {
       "id": "3fb67375-d72e-4286-b39c-4fb4cc25f7a8",
@@ -19,15 +19,15 @@
       "verification": {
         "status": "partial",
         "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:130579:1791997840740409800"
+        "fingerprint": "stat:131825:1792000220671143100"
       },
       "child_index": null,
       "path": "windows-uia.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:130579:1791997840740409800",
-        "size_bytes": 130579,
-        "mtime_ns": 1791997840740409800
+        "fingerprint": "stat:131825:1792000220671143100",
+        "size_bytes": 131825,
+        "mtime_ns": 1792000220671143100
       }
     }
   ]

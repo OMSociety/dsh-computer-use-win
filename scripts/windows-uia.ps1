@@ -7,6 +7,13 @@
 $ErrorActionPreference = "Stop"
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$script:BackendStartupWatch = [System.Diagnostics.Stopwatch]::StartNew()
+function Write-BackendStage {
+  param([string]$Stage)
+  if ([string]$env:WCU_BACKEND_TRACE -eq '1') {
+    [Console]::Error.WriteLine(('stage={0} elapsedMs={1}' -f $Stage, $script:BackendStartupWatch.ElapsedMilliseconds))
+  }
+}
 
 # ============================================================================
 # Win Computer Use — Windows desktop engine for the dsh-computer-use-win MCP server
@@ -318,13 +325,16 @@ function Load-Assemblies {
   # the process DPI context (and GetSystemMetrics then returns virtualized
   # 150%-scaled values like 3414x960 instead of physical 5120x1440).
   if (-not ("WindowsComputerUseNative" -as [type])) {
+    Write-BackendStage 'native-load-start'
     $dll = Join-Path $env:TEMP ("wcu-native-" + (Get-CsHash -Source $script:WcuCs) + ".dll")
     if (-not (Test-Path $dll)) {
       Add-Type -TypeDefinition $script:WcuCs -OutputAssembly $dll
     }
     [void][System.Reflection.Assembly]::LoadFrom($dll)
   }
+  Write-BackendStage 'native-load-complete'
   Set-DpiAware
+  Write-BackendStage 'uia-assemblies-start'
 
   Add-Type -AssemblyName UIAutomationClient
   Add-Type -AssemblyName UIAutomationTypes
@@ -332,6 +342,7 @@ function Load-Assemblies {
   # controls can silently appear as unnamed Pane nodes with no Value pattern.
   Add-Type -AssemblyName UIAutomationClientsideProviders
   # Register the exported table directly: .NET 10 assembly-name casing breaks proxy type lookup.
+  Write-BackendStage 'uia-providers-start'
   $providers = [UIAutomationClientsideProviders.UIAutomationClientSideProviders]::ClientSideProviderDescriptionTable
   try {
     [System.Windows.Automation.ClientSettings]::RegisterClientSideProviders($providers)
@@ -341,9 +352,11 @@ function Load-Assemblies {
     if ($_.Exception.InnerException -isnot [NullReferenceException]) { throw }
     [System.Windows.Automation.ClientSettings]::RegisterClientSideProviders($providers)
   }
+  Write-BackendStage 'uia-providers-complete'
   Add-Type -AssemblyName WindowsBase
   Add-Type -AssemblyName System.Windows.Forms
   Add-Type -AssemblyName System.Drawing
+  Write-BackendStage 'assemblies-complete'
 }
 
 function Set-DpiAware {
@@ -1924,8 +1937,10 @@ function Invoke-Action {
       # Health checks backend availability independently of any application's
       # UIA provider. Reading the foreground provider here can wedge a health
       # request even though native enumeration/capture remain available.
+      Write-BackendStage 'health-native-window-start'
       $active = Get-ObservationWindow ([pscustomobject]@{})
       Update-WindowCache $active
+      Write-BackendStage 'health-native-window-complete'
       return ([ordered]@{
         ok = $true
         platform = "Windows"
@@ -2574,8 +2589,14 @@ function Invoke-Action {
 # Entry points
 # ============================================================================
 
+# Resolve the built-in JSON/Add-Type commands from this PowerShell installation,
+# without searching inherited third-party module paths on the first request.
+Write-BackendStage 'utility-import-start'
+Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
+Write-BackendStage 'utility-import-complete'
 Load-Assemblies
 Set-DpiAware
+Write-BackendStage 'backend-ready'
 
 if ($Persistent) {
   # Persistent mode: one JSON request per stdin line, one JSON response per
@@ -2584,7 +2605,9 @@ if ($Persistent) {
   while ($null -ne ($line = [Console]::In.ReadLine())) {
     if ([string]::IsNullOrWhiteSpace($line)) { continue }
     $req = $null
+    Write-BackendStage 'request-parse-start'
     try { $req = $line | ConvertFrom-Json } catch { continue }
+    Write-BackendStage 'request-parse-complete'
     $id = Get-Prop $req "id" 0
     $name = [string](Get-Prop $req "action" "")
     $result = $null
@@ -2601,6 +2624,7 @@ if ($Persistent) {
       }
     }
     $result["id"] = $id
+    Write-BackendStage 'response-serialize-start'
     Write-Host ($result | ConvertTo-Json -Depth 50 -Compress)
     [Console]::Out.Flush()
   }

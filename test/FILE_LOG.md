@@ -7,7 +7,7 @@
 - 按需读取
 - 历史查询
 
-索引 revision：3。仅登记直接子项；原文件是当前内容事实来源。
+索引 revision：5。仅登记直接子项；原文件是当前内容事实来源。
 
 ## 当前子项
 
@@ -29,7 +29,7 @@
 | [native-health-contract.ps1](native-health-contract.ps1) | file | 故障注入验证 health 不查询 UIA provider，涵盖无前台、窗口消失与响应状态。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | ExpectLegacyFailure | partial |
 | [native-input-errors.ps1](native-input-errors.ps1) | file | 现有业务文件；本輪未复核完整正文与原始生成过程。 | 按精确路径需要该文件时，先打开原文件核实。 |  | unread |
 | [native-window-contract.ps1](native-window-contract.ps1) | file | 现有业务文件；本輪未复核完整正文与原始生成过程。 | 按精确路径需要该文件时，先打开原文件核实。 |  | unread |
-| [native-window-discovery.mjs](native-window-discovery.mjs) | file | 现有业务文件；本輪未复核完整正文与原始生成过程。 | 按精确路径需要该文件时，先打开原文件核实。 |  | unread |
+| [native-window-discovery.mjs](native-window-discovery.mjs) | file | 用覆盖模块路径的 Utility 夹具验证原生后端启动、有限枚举和 HWND/PID 拒绝。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | moduleRoot | partial |
 | [notepad-e2e.mjs](notepad-e2e.mjs) | file | 现有业务文件；本輪未复核完整正文与原始生成过程。 | 按精确路径需要该文件时，先打开原文件核实。 |  | unread |
 | [observation-contract.mjs](observation-contract.mjs) | file | 现有业务文件；本輪未复核完整正文与原始生成过程。 | 按精确路径需要该文件时，先打开原文件核实。 |  | unread |
 | [ocr-query-contract.ps1](ocr-query-contract.ps1) | file | 现有业务文件；本輪未复核完整正文与原始生成过程。 | 按精确路径需要该文件时，先打开原文件核实。 |  | unread |

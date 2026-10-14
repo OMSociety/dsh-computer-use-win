@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
+import {mkdtemp,mkdir,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
 import {McpTestClient} from './mcp-test-client.mjs';
-const client=new McpTestClient(process.execPath,[fileURLToPath(new URL('../mcp/server.mjs',import.meta.url))],{env:{...process.env,WINDOWS_CU_POWERSHELL:process.env.WINDOWS_CU_POWERSHELL||'pwsh'}});
+// An inherited module path must not replace the backend's built-in JSON or
+// compiler commands. Legacy PS5.1 startup selected this shadow Add-Type.
+const moduleRoot=await mkdtemp(path.join(os.tmpdir(),'wcu-shadow-utility-'));
+const utility=path.join(moduleRoot,'Microsoft.PowerShell.Utility');await mkdir(utility);
+await writeFile(path.join(utility,'Microsoft.PowerShell.Utility.psd1'),"@{ModuleVersion='99.0.0';RootModule='Microsoft.PowerShell.Utility.psm1';FunctionsToExport=@('Add-Type','ConvertFrom-Json');CmdletsToExport=@();AliasesToExport=@()}\n");
+await writeFile(path.join(utility,'Microsoft.PowerShell.Utility.psm1'),"function Add-Type { throw 'SHADOW_UTILITY_SELECTED' }; function ConvertFrom-Json { throw 'SHADOW_UTILITY_SELECTED' }\n");
+const client=new McpTestClient(process.execPath,[fileURLToPath(new URL('../mcp/server.mjs',import.meta.url))],{env:{...process.env,PSModulePath:moduleRoot,WINDOWS_CU_POWERSHELL:process.env.WINDOWS_CU_POWERSHELL||'pwsh'}});
 const call=(name,args)=>client.request('tools/call',{name:'windows_computer_use_'+name,arguments:args},15000);
 try{
   await client.init();
@@ -17,7 +26,7 @@ try{
   const wrongOwner=sample.id.replace(/:pid:\d+$/,':pid:0');
   const stale=await call('element_info',{elementId:wrongOwner});
   assert.equal(stale.isError,true);
-  console.log('PASS three bounded native enumerations and mismatched HWND/PID rejection; no window titles printed');
+  console.log('PASS native startup under shadow Utility module, three bounded enumerations and mismatched HWND/PID rejection; no window titles printed');
 }finally{
   client.child.stdin.end();
   const timer=setTimeout(()=>client.child.kill(),4000);

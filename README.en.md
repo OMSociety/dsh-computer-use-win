@@ -221,7 +221,7 @@ npm ci
 npm test
 ```
 
-Dependencies are for development only; the runtime has no npm dependencies. The 17 suites use isolated processes and temporary directories, covering actual WinForms, Chromium and sparse canvas providers plus simulated input/error handling. `npm test` sends no physical input and does not change installed DSH profiles; logs stay in the printed artifacts directory.
+Dependencies are for development only; the runtime has no npm dependencies. The 21 suites use isolated processes and temporary directories, covering actual WinForms, Chromium and sparse canvas providers plus simulated input/error handling. `npm test` sends no physical input and does not change installed DSH profiles; logs stay in the printed artifacts directory.
 
 To check PowerShell 7:
 
@@ -450,7 +450,7 @@ npm ci
 npm test
 ```
 
-测试依赖只用于开发；运行时没有 npm 依赖。17 项套件使用独立进程和临时目录，包含真实 WinForms、Chromium 和稀疏 canvas，以及模拟输入/异常测试。`npm test` 不发送物理输入，不修改已安装的 DSH profile；日志保存到命令输出的目录。
+测试依赖只用于开发；运行时没有 npm 依赖。21 项套件使用独立进程和临时目录，包含真实 WinForms、Chromium 和稀疏 canvas，以及模拟输入/异常测试。`npm test` 不发送物理输入，不修改已安装的 DSH profile；日志保存到命令输出的目录。
 
 验证 PowerShell 7：
 

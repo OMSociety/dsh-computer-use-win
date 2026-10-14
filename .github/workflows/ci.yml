@@ -15,6 +15,7 @@ jobs:
         powershell: [powershell.exe, pwsh.exe]
     env:
       WINDOWS_CU_POWERSHELL: ${{ matrix.powershell }}
+      WCU_BACKEND_TRACE: '1'
     steps:
       - uses: actions/checkout@v4
 

@@ -8,6 +8,7 @@
 - Make health independent of the foreground application's UIA provider. Return native HWND/PID/window metadata and a bounded native responsiveness probe instead of UIA element properties.
 - Report `uiAutomationProviderChecked:false` explicitly. A hung target or missing foreground window no longer turns backend availability into a provider query. UIA capability flags and existing action parameters remain unchanged.
 - Add a regression with UIA functions that deliberately fail, plus hung/missing/disappeared window cases. The historical CI health timeout's exact cause remains unestablished; this fixes a reproduced coupling risk rather than claiming that old timing was reconstructed.
+- Resolve built-in JSON and Add-Type commands from the running PowerShell installation instead of inherited module search paths. Add opt-in stderr startup-stage timings (`WCU_BACKEND_TRACE=1`), enabled in CI, to distinguish assembly/provider initialization, request parsing and native health work when a cold-start watchdog expires. Keep production deadlines unchanged.
 
 ## 0.4.0 — 2026-10-14
 

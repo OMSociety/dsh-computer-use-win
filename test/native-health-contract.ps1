@@ -15,7 +15,7 @@ $source = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../scripts/windows-ui
 $tokens = $null; $parseErrors = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseInput($source, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count) { throw 'Backend source did not parse' }
-foreach ($name in @('Get-Prop','Invoke-Safe','Get-ObservationWindow','Get-WindowResponsive','Get-FreshWindowRect','Update-WindowCache','Invoke-Action')) {
+foreach ($name in @('Write-BackendStage','Get-Prop','Invoke-Safe','Get-ObservationWindow','Get-WindowResponsive','Get-FreshWindowRect','Update-WindowCache','Invoke-Action')) {
   $node = $ast.Find({param($item) $item -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $item.Name -eq $name}, $true)
   if (-not $node) { throw "Missing function $name" }
   Invoke-Expression $node.Extent.Text
@@ -31,6 +31,7 @@ function Get-NativeWindowList {
   return @([ordered]@{ id='uia:hwnd:42:pid:4242'; source='win32'; depth=1; name='owned fixture'; className='Fixture'; controlType='Window'; nativeWindowHandle=42; processId=4242; boundingBox=@{x=10;y=20;width=100;height=80}; isEnabled=$true; isOffscreen=$false; hasKeyboardFocus=$true })
 }
 $Persistent = $true
+$script:BackendStartupWatch = [System.Diagnostics.Stopwatch]::StartNew()
 if ($ExpectLegacyFailure) {
   try { $null = Invoke-Action 'health'; throw 'Legacy health unexpectedly succeeded' }
   catch {

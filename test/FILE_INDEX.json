@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "maintain-file-logs",
-  "revision": 3,
+  "revision": 5,
   "entries": [
     {
       "id": "6a0edc82-555f-4cd9-a779-b3aa66b30402",
@@ -330,15 +330,15 @@
       "verification": {
         "status": "partial",
         "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:3667:1791997866744290300"
+        "fingerprint": "stat:3761:1792000243613108100"
       },
       "child_index": null,
       "path": "native-health-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:3667:1791997866744290300",
-        "size_bytes": 3667,
-        "mtime_ns": 1791997866744290300
+        "fingerprint": "stat:3761:1792000243613108100",
+        "size_bytes": 3761,
+        "mtime_ns": 1792000243613108100
       }
     },
     {
@@ -387,24 +387,29 @@
     },
     {
       "id": "50e874dc-607e-4302-a4b6-c8c47ccf3d65",
-      "summary": "现有业务文件；本輪未复核完整正文与原始生成过程。",
-      "read_when": "按精确路径需要该文件时，先打开原文件核实。",
+      "summary": "用覆盖模块路径的 Utility 夹具验证原生后端启动、有限枚举和 HWND/PID 拒绝。",
+      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
       "tags": [],
-      "locators": [],
+      "locators": [
+        {
+          "type": "symbol",
+          "value": "moduleRoot"
+        }
+      ],
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:1510:1791889928201361100"
+        "status": "partial",
+        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
+        "fingerprint": "stat:2446:1792000377363417000"
       },
       "child_index": null,
       "path": "native-window-discovery.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:1510:1791889928201361100",
-        "size_bytes": 1510,
-        "mtime_ns": 1791889928201361100
+        "fingerprint": "stat:2446:1792000377363417000",
+        "size_bytes": 2446,
+        "mtime_ns": 1792000377363417000
       }
     },
     {
