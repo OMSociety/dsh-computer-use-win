@@ -1,6 +1,6 @@
 {
   "name": "dsh-computer-use-win",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Windows computer use for DeepSeek Harness: an MCP stdio server + PowerShell UIA backend, bridged into DSH via @deepseek-ai/dsh-mcp-client. Read/act on real Windows desktop apps (UI Automation tree, screenshots, typed input, OCR, window management).",
   "type": "module",
   "bin": {
@@ -9,6 +9,7 @@
   "main": "mcp/server.mjs",
   "files": [
     "mcp/server.mjs",
+    "mcp/dsh-plugin.mjs",
     "scripts/windows-uia.ps1",
     "docs/",
     "cordis.patch.yml",
@@ -57,8 +58,17 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.0.0",
+    "@deepseek-ai/schemastery": "3.18.1",
+    "@modelcontextprotocol/client": "2.3.1",
     "electron": "44.0.0",
     "js-yaml": "4.3.2"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": ">=3.18.1",
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.2"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": { "optional": true },
+    "@deepseek-ai/dsh-mcp-client": { "optional": true }
   }
 }

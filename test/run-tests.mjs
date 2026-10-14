@@ -13,6 +13,7 @@ const root = await mkdtemp(path.join(os.tmpdir(), 'wcu-isolated-tests-'));
 if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `artifactRoot=${root}\n`);
 const suites = [
   ['source-encoding', process.execPath, ['test/source-encoding.mjs']],
+  ['tool-context', process.execPath, ['test/tool-context.mjs']],
   ['selftest', process.execPath, ['mcp/server.mjs', '--self-test']],
   ['mcp-roundtrip', process.execPath, ['test/mcp-test.mjs', 'mcp/server.mjs', 'windows_computer_use_wait', '{"milliseconds":1}']],
   ['profile-resolution', process.execPath, ['test/profile-resolution.mjs']],

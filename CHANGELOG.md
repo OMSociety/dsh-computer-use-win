@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-10-14
+
+- Add a DSH plugin configuration with Lite/Full modes. Lite starts with nine common desktop tools plus discovery; Full exposes all 23 desktop tools plus discovery. Standalone MCP defaults to Full for compatibility.
+- Compress model-facing prose while preserving execution schemas, types, bounds, defaults and existing tool names. `tools.describe` returns the full original contract on demand; `enable`, `disable` and `reset` update the MCP list with change notifications.
+- Measure tools/list at 9,046 characters in Lite and 20,259 in Full, compared with 43,495 in 0.3.1. These are character counts, not model-independent token claims.
+- Keep the official DSH MCP bridge responsible for lifecycle, cancellation and tool registration; its host packages are optional peers, not newly bundled runtime dependencies.
+- Add discovery/schema/load/reset regressions and verify official bridge refresh. Upgrade the test-only MCP client to 2.3.1.
+
+
 ## 0.3.1 — 2026-10-14
 
 - 前台窗口完全在虚拟桌面范围内且无遮挡时，截图/OCR 优先采集真实屏幕像素，避免网易云 CEF 的 PrintWindow 返回成功但图片缺失下半部分。采集前后检查前台 HWND、窗口层级和位置；不主动激活窗口。

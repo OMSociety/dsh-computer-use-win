@@ -3,7 +3,8 @@
 // PowerShell protocol fixture keeps this transport test independent of UIA.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, writeFile, symlink } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,6 +26,9 @@ export async function makeProfile() {
   for (const entry of ['package.json', 'cordis.patch.yml', 'mcp', 'scripts', 'docs']) {
     await cp(path.join(checkout, entry), path.join(installed, entry), { recursive: true });
   }
+  const peers = path.join(profile, 'node_modules', '@deepseek-ai');
+  await mkdir(peers, { recursive: true });
+  await symlink(path.dirname(fileURLToPath(import.meta.resolve('@deepseek-ai/schemastery/package.json'))), path.join(peers, 'schemastery'), 'junction');
   return { root, profile, installed };
 }
 
@@ -40,8 +44,11 @@ async function evaluateBundle(profile, patchPath) {
   const rows = patch.flatMap(layer => layer.insert || []);
   const entries = rows.filter(row => row.id === 'mcp-dsh-computer-use-win');
   assert.equal(entries.length, 1, 'Expected one wincu bundle entry');
+  assert.equal(entries[0].name, 'dsh-computer-use-win/mcp/dsh-plugin.mjs');
+  const require = createRequire(new URL('package.json', baseUrl));
+  const adapter = await import(pathToFileURL(require.resolve(entries[0].name)).href);
   return {
-    config: entries[0].config,
+    config: adapter.bridgeConfig(adapter.Config(entries[0].config)),
     runtime: { execPath: process.execPath, node: process.versions.node, electron: process.versions.electron || null }
   };
 }
@@ -156,14 +163,15 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     assert.equal(result.connected, true, result.error || result.stderr);
     assert.equal(result.serverInfo.name, 'windows-computer-use');
     assert.equal(result.serverInfo.version, expectedVersion);
-    assert.equal(result.toolCount, 23);
+    assert.equal(host.config.env.WCU_TOOL_MODE, 'lite');
+    assert.equal(result.toolCount, 10);
     assert.equal(result.healthOk, true);
     // Catch the old 12-30 second synthetic-worker stall even when it succeeds.
     // This is a test budget with ample runner headroom, not a production timeout.
     assert.ok(result.stagesMs.health < 10000, `Synthetic health exceeded 10000ms: ${JSON.stringify(result)}`);
     assert.equal(result.waitOk, true);
     assert.equal(result.resourceCount, 6);
-    console.log(`PASS ${name} bundle -> MCP initialize / 23 tools / health / wait / 6 resources (synthetic PowerShell worker)`);
+    console.log(`PASS ${name} bundle -> MCP initialize / 10 lite tools / health / wait / 6 resources (synthetic PowerShell worker)`);
   }
   console.log(`BUNDLE_TIMING ${JSON.stringify({ phase: 'suite', durationMs: Math.round(performance.now() - suiteStarted) })}`);
 }

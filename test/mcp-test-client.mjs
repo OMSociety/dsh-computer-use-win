@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 export class McpTestClient {
   constructor(command,args=[],options={}) {
     this.child=spawn(command,args,{windowsHide:true,stdio:['pipe','pipe','pipe'],...options});
-    this.next=1; this.pending=new Map(); this.stderr=''; this.buffer=''; this.transcript=[];
+    this.next=1; this.pending=new Map(); this.stderr=''; this.buffer=''; this.transcript=[]; this.notifications=[];
     this.child.stderr.on('data',data=>{this.stderr+=data});
     this.child.stdout.on('data',data=>{
       this.buffer+=data;
@@ -11,6 +11,7 @@ export class McpTestClient {
         const line=this.buffer.slice(0,end);this.buffer=this.buffer.slice(end+1);
         if(!line.trim())continue;
         let message;try{message=JSON.parse(line)}catch{continue}
+        if(message.method&&!Object.hasOwn(message,'id'))this.notifications.push(message);
         const wait=this.pending.get(message.id);
         if(wait){clearTimeout(wait.timer);this.pending.delete(message.id);message.error?wait.reject(new Error(JSON.stringify(message.error))):wait.resolve(message.result)}
       }

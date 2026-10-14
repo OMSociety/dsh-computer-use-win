@@ -13,7 +13,7 @@
 
 让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 agent 读取并操作真实 Windows 应用：找控件、看截图、识别文字、点击、输入和管理窗口。
 
-**23 个工具 · 零运行时 npm 依赖 · 默认支持 PowerShell 5.1**
+**23 项桌面能力 · 精简 / 全能模式 · 默认支持 PowerShell 5.1**
 
 [快速开始](#快速开始) · [使用示例](#使用示例) · [实际演示](#实际演示) · [工具与进阶](#工具与进阶) · [常见问题](#常见问题) · [English ↑](#english)
 
@@ -25,7 +25,7 @@
 dsh plugin --profile web add dsh-computer-use-win
 ```
 
-重启 `dsh web`；DSH Desktop 用户重新加载对应宿主和 MCP worker。将 `web` 换成**实际使用的 profile**，再运行 `health` 检查连接。工具在 DSH 中显示为 `mcp__wincu__windows_computer_use_*`。
+重启 `dsh web`；DSH Desktop 用户重新加载对应宿主和 MCP worker。将 `web` 换成**实际使用的 profile**，让 agent 检查连接；需要 `health` 时可按需加载。工具在 DSH 中显示为 `mcp__wincu__windows_computer_use_*`。
 
 <details open>
 <summary>其他安装方式与升级检查</summary>
@@ -43,6 +43,19 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 曾为 [#13](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/13) 添加专用完整配置覆盖的用户，应移除那项旧覆盖后检查 `health`。新版默认 bundle 已为 Electron 子进程设置 `ELECTRON_RUN_AS_NODE=1`；自定义 Electron 构建需要启用 `runAsNode` fuse。
 
 </details>
+
+### 工具模式与上下文
+
+默认使用**精简模式**。在该插件的 DSH 配置中找到 **工具模式 / Tool mode**，选择精简或全能，保存并重载插件。已安装的旧版完整 MCP 配置覆盖应先移除。
+
+| 模式 | 模型初始可见的工具 | 工具定义字符数 |
+|---|---|---|
+| 精简（默认） | 9 个常用工具 + 1 个发现入口 | 9,046，较 0.3.1 减少 79.2% |
+| 全能 | 23 项桌面工具 + 1 个发现入口 | 20,259，较 0.3.1 减少 53.4% |
+
+精简模式保留窗口列表、查找、点击、滚动、输入、按键、OCR、截图和条件等待。需要拖动、无障碍树或窗口管理时，agent 可通过 `tools` 发现入口读取单个工具的详细说明，再加载它；用完可卸载或 `reset` 恢复默认集合。能力和参数校验都保留。
+
+数字来自同一序列化方式下的实际 MCP `tools/list` 定义，原版为 43,495 字符；模型 token 数取决于分词器、宿主包装和会话历史。加载的说明及历史消息不会从已有对话中自动消失。更多配置与调用示例见[按需工具说明](docs/tool-context.md)。
 
 ### 能做什么
 
@@ -229,7 +242,7 @@ MIT 许可。基于 [cgissing/windows-computer-use](https://github.com/cgissing/
 
 Give a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) agent access to real Windows apps: find controls, inspect screenshots, read visible text, click, type and manage windows.
 
-**23 tools · Zero runtime npm dependencies · PowerShell 5.1 by default**
+**23 desktop capabilities · Lite / Full modes · PowerShell 5.1 by default**
 
 [Quick start](#quick-start) · [Try a task](#try-a-task) · [See it in action](#see-it-in-action) · [Tools and options](#tools-and-options) · [FAQ](#faq) · [简体中文 ↑](#简体中文)
 
@@ -259,6 +272,19 @@ The bundle resolves the package through the current profile's `package.json`, su
 If you added a dedicated full configuration override for [#13](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/13), remove that old override and check `health`. The default bundle sets `ELECTRON_RUN_AS_NODE=1` for its Electron child; custom Electron builds need the `runAsNode` fuse enabled.
 
 </details>
+
+### Tool modes and context
+
+**Lite is the default.** In this plugin's DSH configuration, choose **Tool mode**, save, and reload the plugin. Remove legacy full MCP configuration overrides first.
+
+| Mode | Initially visible tools | Tool-definition characters |
+|---|---|---|
+| Lite (default) | 9 common tools + 1 discovery tool | 9,046; 79.2% less than 0.3.1 |
+| Full | 23 desktop tools + 1 discovery tool | 20,259; 53.4% less than 0.3.1 |
+
+Lite includes window listing, find, click, scroll, typing, keys, OCR, screenshots and condition waits. For dragging, UIA trees or window management, the agent can use `tools` to read one tool's full instructions and load it on demand. Disable it afterward or use `reset` to restore the initial set. Capabilities and argument validation are preserved.
+
+These are measured MCP `tools/list` character counts using the same serialization (0.3.1: 43,495). Token counts depend on the tokenizer, host wrapping and conversation history. Unloading does not erase instructions or messages already in a conversation. See [on-demand tools](docs/tool-context.md) for configuration and call examples.
 
 ### What it can do
 

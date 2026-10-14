@@ -10,7 +10,7 @@
 |---|---|
 | `mcp/server.mjs` 的骨架与工具 schema 基础 | MCP stdio 服务器结构、窗口目标参数约定 |
 | `scripts/windows-uia.ps1` 的引擎核心 | UIA 树遍历、PrintWindow 截图 + 黑帧检测、SendInput 鼠标路径、窗口管理动作 |
-| `docs/wiki/`（全部 6 个文件） | 上游的架构/安全/工具文档，原样收录 |
+| `docs/wiki/`（全部 6 个文件）的基础内容 | 源自上游的架构/安全/工具文档，部分已按 DSH 能力更新 |
 | 部分设计决策 | DPI 感知顺序、SendInput ABSOLUTE 多显示器问题的规避思路 |
 
 上游版权与许可：
@@ -23,7 +23,7 @@
 
 ## 本项目新增的部分（Copyright (c) 2026 Yu-tao-Li）
 
-- **DSH 集成**：`dsh.bundle` 打包（`cordis.patch.yml` 的 `!!js` 路径解析）、
+- **DSH 集成**：`dsh.bundle` 打包、当前 profile 的包路径解析、精简/全能配置适配器、
   in-box `dsh-mcp-client` 桥接、`github:` 安装路径
 - **持久化后端管理**：MCP server 侧的 JSON 行协议、懒重建、超时 kill
 - **WGC 窗口捕获**：Windows.Graphics.Capture 回退（C# WinRT 助手 + 编译缓存 + 优雅降级）

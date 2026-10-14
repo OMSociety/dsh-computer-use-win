@@ -4,26 +4,13 @@
 # @deepseek-ai/dsh-mcp-client bridge. After DSH starts, the model sees tools
 # named mcp__wincu__<tool> (health, snapshot, click, type_text, ocr, ...).
 #
-# Path resolution: `!!js` expressions interpolate against the boot tree's
-# context, whose `baseUrl` is the PROFILE directory (where cordis.yml lives),
-# not this patch file's package directory. So server.mjs is resolved as a
-# package specifier through createRequire anchored at the profile's
-# package.json — this works in any profile under any $DSH_HOME, survives the
-# pnpm store layout, and keeps no hard-coded paths. `process.execPath` is the
-# host executable: node.exe for CLI/Web, or the Electron executable for Desktop.
-# The child-only ELECTRON_RUN_AS_NODE flag makes Electron run this stdio server
-# as Node; ordinary Node ignores it. Electron must enable the runAsNode fuse.
+# DSH resolves the adapter as a package specifier in the current profile.
+# Its Config exposes Lite/Full in the plugin settings form. The adapter resolves
+# server.mjs relative to itself and delegates to the official bridge with the
+# child-only ELECTRON_RUN_AS_NODE flag. No hard-coded profile paths or compilation.
 
 - insert:
     - id: mcp-dsh-computer-use-win
-      name: '@deepseek-ai/dsh-mcp-client'
+      name: 'dsh-computer-use-win/mcp/dsh-plugin.mjs'
       config:
-        serverName: wincu
-        transport: stdio
-        command: !!js process.execPath
-        args:
-          - !!js "process.getBuiltinModule('node:module').createRequire(new URL('package.json', baseUrl)).resolve('dsh-computer-use-win/mcp/server.mjs')"
-        env:
-          ELECTRON_RUN_AS_NODE: '1'
-        toolCallTimeoutMs: 60000
-        failOnStartupError: false
+        mode: lite

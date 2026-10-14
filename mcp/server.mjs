@@ -480,6 +480,110 @@ const tools = [
   }
 ];
 
+// Keep execution/validation schemas intact; only the model-facing prose is
+// shortened. The discovery tool returns the original definition on demand.
+const conciseDescriptions = {
+  health: 'Check Windows backend availability.',
+  snapshot: 'Screenshot and UIA tree. Partial trees report truncation; use OCR for sparse UIA.',
+  accessibility_tree: 'Read a bounded UIA tree; partial output does not establish absence.',
+  list_windows: 'List native top-level windows, HWND/PID and responsiveness.',
+  find: 'Find UIA controls; empty sparse searches add OCR. OCR hits use SCREEN coordinates, not element IDs.',
+  element_info: 'Inspect a UIA element ID or physical SCREEN point.',
+  click: 'Click elementId or physical SCREEN x/y. auto prefers UIA for elements; background delivery is unverified.',
+  double_click: 'Double-click elementId or physical SCREEN x/y; background delivery is unverified.',
+  move: 'Move pointer to elementId or physical SCREEN x/y.',
+  drag: 'Drag a path of physical SCREEN coordinates; target must be foreground.',
+  scroll: 'Scroll at elementId or physical SCREEN x/y; positive deltaY scrolls down.',
+  type_text: 'Type into current focus; clipboard supports CJK and restores prior contents. Background delivery is unverified.',
+  keypress: 'Send key/chord, e.g. ["ctrl","a"]. Windows key blocked; background supports one printable character only.',
+  focus: 'Focus a UIA element.',
+  invoke: 'Invoke/toggle/select/expand a UIA element, with optional click fallback.',
+  set_value: 'Set a UIA value, with optional focus/type fallback.',
+  activate_window: 'Activate target window; activation cannot be suppressed.',
+  wait: 'Pause briefly before observing again.',
+  ocr: 'Read visible text without UIA. Literal query; inspect lines on misses. Click word.x/y in SCREEN coordinates.',
+  screenshot: 'Capture without UIA. SCREEN = bounds origin + image pixel / imageScale. Inspect resulting state to verify actions.',
+  wait_for: 'Wait for window/UIA element/literal OCR text. observed means condition met; partial UIA absence is inconclusive.',
+  close_window: 'Post WM_CLOSE in background; application may close or show a save dialog.',
+  move_window: 'Move window to physical SCREEN x/y; updates coordinate homing.'
+};
+const concisePropertyDescriptions = {
+  windowTitle: 'Target title substring.', processId: 'Target PID.', nativeWindowHandle: 'Target HWND.',
+  activate: 'Request foreground; close_window ignores this.',
+  viewMode: 'UIA view; runtime IDs bypass view filtering.',
+  includeOffscreen: 'Include offscreen UIA nodes.', detailLevel: 'compact omits heavy/empty node metadata.',
+  treeTimeoutMs: 'Budget between UIA calls; a provider call may overrun.',
+  captureWindow: 'Crop target window; bounds/imageScale map SCREEN coordinates.',
+  ocrFallback: 'Add OCR after empty sparse/incomplete UIA search.',
+  focusMode: 'preserve keeps clicked focus; main chooses largest text control.',
+  query: 'Literal text; OCR ignores case/whitespace.',
+  resolveControl: 'Optional UIA hit-test; may block or return a whole document.'
+};
+function compactSchema(schema, key) {
+  const result = {};
+  for (const [field, value] of Object.entries(schema)) {
+    if (field === 'description') {
+      if (concisePropertyDescriptions[key]) result.description = concisePropertyDescriptions[key];
+    } else if (field === 'properties') {
+      result.properties = Object.fromEntries(Object.entries(value).map(([name, child]) => [name, compactSchema(child, name)]));
+    } else if (field === 'items') result.items = compactSchema(value);
+    else result[field] = value;
+  }
+  return result;
+}
+const toolMode = process.env.WCU_TOOL_MODE || 'full';
+if (!['lite', 'full'].includes(toolMode)) throw new Error('WCU_TOOL_MODE must be lite or full');
+const prefix = 'windows_computer_use_';
+const discoveryName = prefix + 'tools';
+const liteNames = ['list_windows', 'find', 'click', 'scroll', 'type_text', 'keypress', 'ocr', 'screenshot', 'wait_for'];
+const initialNames = (toolMode === 'lite' ? liteNames : tools.map(tool => tool.name.slice(prefix.length))).map(name => prefix + name);
+const enabledTools = new Set([...initialNames, discoveryName]);
+const discoveryTool = {
+  name: discoveryName,
+  description: 'List capabilities; describe reads full usage/schema for one tool; enable loads named tools, disable unloads, reset restores startup mode. Load before calling hidden tools.',
+  inputSchema: { type: 'object', additionalProperties: false, properties: {
+    operation: { type: 'string', enum: ['list','describe','enable','disable','reset'], default: 'list' },
+    names: { type: 'array', maxItems: 23, items: { type: 'string' } }
+  } }
+};
+function advertisedTools() {
+  return [...tools.filter(tool => enabledTools.has(tool.name)).map(tool => ({
+    name: tool.name,
+    description: conciseDescriptions[tool.name.slice(prefix.length)],
+    inputSchema: compactSchema(tool.inputSchema)
+  })), discoveryTool];
+}
+function manageTools(args) {
+  args = validateArguments(discoveryTool.inputSchema, args);
+  const names = (args.names || []).map(name => name.startsWith(prefix) ? name : prefix + name);
+  // Resolve every name before mutation, so one typo cannot partially change
+  // the client's advertised list. Discovery itself always remains available.
+  const definitions = names.map(name => {
+    const tool = tools.find(tool => tool.name === name);
+    if (!tool) throw new Error(`Unknown tool: ${name}`);
+    return tool;
+  });
+  let result;
+  if (args.operation === 'list') {
+    result = { mode: toolMode, tools: tools.map(tool => ({
+      name: tool.name.slice(prefix.length), description: conciseDescriptions[tool.name.slice(prefix.length)], enabled: enabledTools.has(tool.name)
+    })) };
+  } else if (args.operation === 'describe') {
+    if (definitions.length !== 1) throw new Error('INVALID_ARGUMENTS: describe requires exactly one name');
+    result = definitions[0];
+  } else {
+    if (args.operation === 'reset' && names.length) throw new Error('INVALID_ARGUMENTS: reset takes no names');
+    if (args.operation !== 'reset' && !names.length) throw new Error('INVALID_ARGUMENTS: enable/disable requires names');
+    const before = [...enabledTools].sort().join(',');
+    if (args.operation === 'reset') {
+      enabledTools.clear(); for (const name of [...initialNames, discoveryName]) enabledTools.add(name);
+    } else for (const name of names) args.operation === 'enable' ? enabledTools.add(name) : enabledTools.delete(name);
+    result = { mode: toolMode, enabled: advertisedTools().map(tool => tool.name) };
+    if (before !== [...enabledTools].sort().join(',')) send({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' });
+  }
+  return { content: [{ type: 'text', text: safeJson(result) }] };
+}
+
 function safeJson(value) {
   return JSON.stringify(value);
 }
@@ -689,6 +793,7 @@ function runBackend(action, args = {}, timeoutMs = 30000, request) {
 }
 
 async function callTool(name, args, request) {
+  if (name === discoveryName) return manageTools(args);
   const definition = tools.find(tool => tool.name === name);
   if (!definition) throw new Error(`Unknown tool: ${name}`);
   args = validateArguments(definition.inputSchema, args);
@@ -830,7 +935,7 @@ async function handleRequest(message) {
       result: {
         protocolVersion: params?.protocolVersion || MCP_PROTOCOL_VERSION,
         capabilities: {
-          tools: {},
+          tools: { listChanged: true },
           resources: {}
         },
         serverInfo: {
@@ -844,7 +949,7 @@ async function handleRequest(message) {
     return { jsonrpc: "2.0", id, result: {} };
   }
   if (method === "tools/list") {
-    return { jsonrpc: "2.0", id, result: { tools } };
+    return { jsonrpc: "2.0", id, result: { tools: advertisedTools() } };
   }
   if (method === "tools/call") {
     const request = { proc: null };
