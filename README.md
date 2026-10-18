@@ -4,7 +4,7 @@
 
 [![npm](https://img.shields.io/npm/v/dsh-computer-use-win?label=npm&color=blue)](https://www.npmjs.com/package/dsh-computer-use-win) [![CI](https://github.com/Yu-tao-Li/dsh-computer-use-win/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Yu-tao-Li/dsh-computer-use-win/actions/workflows/ci.yml) ![Windows](https://img.shields.io/badge/platform-Windows-0078D6) [![MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-您的 [**Star ⭐ ↗**](https://github.com/Yu-tao-Li/dsh-computer-use-win) 就是我更新的动力，球球了，这对我很重要！如有问题，欢迎去 [**提 Issue ↗**](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/new)，您来许愿，我来实现！
+您的 [**Star ⭐ ↗**](https://github.com/Yu-tao-Li/dsh-computer-use-win) 就是我更新的动力，球球了，这对我很重要！如有问题，欢迎去 [**提 Issue ↗**](https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/new)，**您来许愿，我来实现！**
 
 **语言 / Language:** [简体中文](#简体中文) · [English](#english)
 
