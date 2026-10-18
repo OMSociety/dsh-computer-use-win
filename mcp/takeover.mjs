@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_SETTINGS, normalizeSettings } from './settings.mjs';
 
-export const STOPPED = 'COMPUTER_USE_STOPPED_BY_USER: The user pressed Esc or their custom stop shortcut. Stop desktop input; do not retry or resume automatically. The user can click Resume desktop control in Settings > Computer Use.';
+export const STOPPED = 'COMPUTER_USE_STOPPED_BY_USER: The user stopped this operation series with Esc or their custom shortcut. Do not retry desktop input in this turn. A new user turn, including a request to continue, can use the desktop automatically; no settings change is required.';
 const helperScript = fileURLToPath(new URL('../scripts/windows-takeover.ps1', import.meta.url));
 
 export function atomicJson(file, value) {
@@ -28,7 +28,7 @@ export class TakeoverControl {
     stateFile = process.env.WCU_STATE_FILE, activityFile=process.env.WCU_ACTIVITY_FILE,testMode = false, config = {} } = {}) {
     this.powershell = powershell; this.onStop = onStop; this.configFile = configFile; this.stateFile = stateFile;
     this.testMode = testMode; this.config = normalizeSettings(config); this.active = 0; this.paused = false;
-    this.activityFile=activityFile;this.seriesHeld=false;
+    this.activityFile=activityFile;this.seriesHeld=false;this.seriesKey=null;this.stoppedSeriesKey=null;this.blockedSeries=new Map();
     this.eventName = `Local\\DSH-WCU-${randomUUID()}`; this.waiters = new Map(); this.nextId = 0;
     this.resumeToken = this.config.resumeToken; this.previewToken = this.config.previewToken; this.pauseMessage = STOPPED;
     this.disabledForTest = process.env.NODE_ENV === 'test' && process.env.WCU_TEST_NO_TAKEOVER === '1';
@@ -37,6 +37,8 @@ export class TakeoverControl {
       this.paused = saved.paused === true;
       this.pauseMessage = saved.pauseMessage ?? STOPPED;
       this.resumeToken = saved.resumeToken ?? this.resumeToken;
+      this.stoppedSeriesKey=saved.stoppedSeriesKey??null;
+      this.blockedSeries=new Map(Object.entries(saved.blockedSeries??(this.stoppedSeriesKey?{[this.stoppedSeriesKey]:this.pauseMessage}:{})));
     } catch (error) { if (this.stateFile && error.code !== 'ENOENT') throw error; }
     if (configFile||activityFile) {
       this.poll = setInterval(() => { this.sync().catch(error => this.fail(error)); }, 250);
@@ -45,12 +47,19 @@ export class TakeoverControl {
   }
   persist(reason) {
     atomicJson(this.stateFile, { paused: this.paused, active: this.active, seriesActive:this.seriesHeld,reason: reason ?? null,
-      resumeToken: this.resumeToken, pauseMessage: this.paused ? this.pauseMessage : null, updatedAt: new Date().toISOString() });
+      resumeToken: this.resumeToken,stoppedSeriesKey:this.stoppedSeriesKey,blockedSeries:Object.fromEntries(this.blockedSeries),pauseMessage: this.paused ? this.pauseMessage : null, updatedAt: new Date().toISOString() });
   }
-  async sync() {
-    if (this.syncing) return this.syncing;
-    this.syncing = this.syncInner().finally(() => { this.syncing = null; });
-    return this.syncing;
+  async resumeOperation(clearScope=true){
+    if(this.child)await this.command('resume');
+    this.paused=false;if(clearScope)this.stoppedSeriesKey=null;
+    this.persist('new-operation');
+  }
+  sync() {
+    // Each caller needs a read after its own config/turn update. Reusing an
+    // in-flight read can otherwise apply the previous turn's stopped state.
+    const pending=(this.syncing??Promise.resolve()).catch(()=>{}).then(()=>this.syncInner());
+    this.syncing=pending;
+    return pending.finally(()=>{if(this.syncing===pending)this.syncing=null;});
   }
   async syncInner() {
     if (this.closed) return;
@@ -58,9 +67,12 @@ export class TakeoverControl {
     if(this.activityFile){
       const activity=JSON.parse(await readFile(this.activityFile,'utf8'));
       const held=activity.active===true&&Number.isFinite(activity.expiresAt)&&activity.expiresAt>Date.now();
-      if(held!==this.seriesHeld){
+      const key=held?JSON.stringify([activity.sessionId,activity.turn]):this.seriesKey;
+      if(held&&!this.blockedSeries.has(key)&&this.paused&&this.active===0)await this.resumeOperation();
+      if(held!==this.seriesHeld||key!==this.seriesKey){
+        this.seriesKey=key;
         this.seriesHeld=held;
-        if(!this.paused&&!this.disabledForTest){
+        if(!this.paused&&!this.blockedSeries.has(key)&&!this.disabledForTest){
           if(held)await this.command('begin',this.config);
           else if(this.active===0&&this.child)await this.command('end');
         }
@@ -69,22 +81,25 @@ export class TakeoverControl {
     }
     const presentation=JSON.stringify([this.config.indicatorEnabled,this.config.cursorIndicatorEnabled,this.config.remoteIndicatorVisible,this.config.indicatorText,this.config.indicatorPosition,this.config.indicatorIdleMs,this.config.stopShortcut]);
     if (this.child && this.sentPresentation!==presentation) {
-      await this.command((this.seriesHeld||this.active>0)&&!this.paused?'begin':'configure', this.config);
+      await this.command((this.seriesHeld||this.active>0)&&!this.paused&&!this.blockedSeries.has(this.seriesKey)?'begin':'configure', this.config);
       this.sentPresentation=presentation;
       this.sentShortcut = this.config.stopShortcut; this.sentCursorIndicator = this.config.cursorIndicatorEnabled;this.sentRemoteVisible=this.config.remoteIndicatorVisible;
     }
     if (this.config.resumeToken !== this.resumeToken && this.active === 0) {
       if (this.child) await this.command('resume');
-      this.resumeToken = this.config.resumeToken; this.paused = false; this.persist('resumed-by-user');
+      this.resumeToken = this.config.resumeToken; this.paused = false;this.stoppedSeriesKey=null;this.blockedSeries.clear(); this.persist('resumed-by-user');
       if(this.seriesHeld&&!this.disabledForTest)await this.command('begin',this.config);
     }
     if (this.config.previewToken !== this.previewToken) {
       this.previewToken = this.config.previewToken;
+      if(this.paused&&this.active===0&&!this.seriesHeld)await this.resumeOperation(false);
       if (!this.paused && this.active === 0 && !this.disabledForTest) await this.command('preview', this.config);
     }
   }
   async begin() {
     await this.sync();
+    if(this.seriesHeld&&this.blockedSeries.has(this.seriesKey))throw new Error(this.blockedSeries.get(this.seriesKey));
+    if(this.paused&&!this.activityFile&&this.active===0)await this.resumeOperation();
     if (this.paused) throw new Error(this.pauseMessage);
     if (this.closed) throw new Error('COMPUTER_USE_STOPPING');
     if (!this.disabledForTest&&(!this.seriesHeld||!this.child)) {
@@ -101,7 +116,9 @@ export class TakeoverControl {
   fail(error) {
     if (this.closed || this.paused) return;
     this.paused = true;
-    this.pauseMessage = error?.message === STOPPED ? STOPPED : `COMPUTER_USE_PAUSED: ${error?.message ?? error}. Desktop input is paused; restore the stop listener and resume in Settings > Computer Use.`;
+    this.stoppedSeriesKey=this.seriesKey;
+    this.pauseMessage = error?.message === STOPPED ? STOPPED : `COMPUTER_USE_PAUSED: ${error?.message ?? error}. This operation series is paused. Do not retry in this turn; a new user turn can retry the desktop connection.`;
+    if(this.seriesKey!==null)this.blockedSeries.set(this.seriesKey,this.pauseMessage);
     this.persist(String(error?.message ?? error));
     // This also covers a control-file or presentation failure while input runs.
     this.child?.stdin.write(JSON.stringify({command:'stop'})+'\n',()=>{});

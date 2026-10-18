@@ -18,7 +18,7 @@
 
 “远程与录屏可见”默认开启，让 UU、屏幕共享及录屏可以捕获提示。关闭后请求 Windows 在支持的捕获路径中排除提示。组件通过原生活动显示器枚举、显示／会话事件及接管期间 500 毫秒复核刷新，处理虚拟屏幕新增、移除、重连和布局／DPI 变化。
 
-DSH 从首次 Computer Use 工具实际执行开始，整轮操作期间持续显示提示，包括截图、读取和中间思考；轮次完成、取消或异常退出后才按延时收起。普通文件读写或 shell 命令不单独触发提示。其他对话正在接管桌面时返回忙碌状态，避免两个任务交错操作鼠标。宿主活动租约过期后会释放提示。独立 stdio 客户端没有 DSH 的轮次边界，保持单次调用显示。
+DSH 从首次 Computer Use 工具实际执行开始持续显示提示，包括截图、读取和短暂思考。轮次完成、取消或异常退出后按延时收起；最后一次桌面调用完成后空闲 30 秒，也会收起提示并释放占用，下一次调用重新显示。仍在执行的动作不会被当作空闲。普通文件读写或 shell 命令不单独触发提示。其他对话正在接管桌面时返回忙碌状态，避免两个任务交错操作鼠标。宿主活动租约过期后会释放提示。独立 stdio 客户端没有 DSH 的轮次边界，保持单次调用显示。
 
 ### 对话中的操作记录
 
@@ -30,9 +30,9 @@ DSH 从首次 Computer Use 工具实际执行开始，整轮操作期间持续�
 
 按物理 **Esc** 停止。也可在“自定义停止方式”点击“录制快捷键”，按 F8 或 Ctrl + Alt + K 等按键／组合键并保存；“恢复默认（Esc）”清除额外快捷键。录制时 Esc 用于取消；失焦或 15 秒未录入会退出录制。
 
-停止后保持暂停，准备好再点击“恢复桌面控制”。普通鼠标移动与其他按键不会停止；程序发送的按键不视为物理停止输入。关闭提示仍保留停止监听。
+Esc 只停止当前这一轮及其排队操作，同一轮不会自动重试。下次发起任务或发送“继续”时自动可用，无需进入设置恢复。普通鼠标移动与其他按键不会停止；程序发送的按键不视为物理停止输入。关闭提示仍保留停止监听。
 
-取消会在可分段输入与 UIA 解析后的执行边界检查，并在收尾时释放按住的输入。已送达应用的操作无法撤回，阻塞的应用 Provider 调用需要先返回。恢复始终需要用户明确操作；完整重启插件会建立新的控制实例。
+取消会在可分段输入与 UIA 解析后的执行边界检查，并在收尾时释放按住的输入。已送达应用的操作无法撤回，阻塞的应用 Provider 调用需要先返回。按 Esc 不会请求重启或退出 DSH，也不能据此判断应用崩溃。
 
 ## English
 
@@ -44,10 +44,10 @@ Choose **Lite / All / Custom** in the outer selector. All is the default (24 ent
 
 Screen edges/banner and the pointer halo/DSH badge have independent controls. Customize text, top/bottom placement and the 200–3000ms hide delay, save and preview. The layers let clicks pass through, keep focus and leave Windows cursor themes intact. **Visible in remote sessions and recordings** is on by default, including virtual displays. Turning it off requests capture exclusion on supported Windows capture paths. Active monitor enumeration, display/session events and a 500ms topology check refresh the layers after display, layout or DPI changes. The indicators cover this plugin's complete desktop operation series, or a requested preview.
 
-Physical **Esc**, or a recorded key/combination, stops and keeps input paused until **Resume desktop control** is clicked. Record a shortcut and save; Restore default (Esc) clears the additional key. Esc cancels recording, and blur or 15 seconds of inactivity exits it. Ordinary mouse movement, other keys and injected keys do not trigger a physical stop. Hiding the indicator keeps the listener active.
+Physical **Esc**, or a recorded key/combination, stops the current operation series and queued input. It cannot retry in the same turn. A new user task or request to continue can use the desktop automatically, without visiting settings. Record a shortcut and save; Restore default (Esc) clears the additional key. Esc cancels recording, and blur or 15 seconds of inactivity exits it. Ordinary mouse movement, other keys and injected keys do not trigger a physical stop. Hiding the indicator keeps the listener active.
 
-In DSH, indicators stay visible from the first desktop call through observations and reasoning until the complete turn finishes or is cancelled. A host lease releases stale state; another conversation receives a busy result while the desktop is owned. Standalone stdio clients retain per-call indicators because they provide no DSH turn boundary. Regular mouse movement does not stop a series.
+In DSH, indicators stay visible from the first desktop call through observations and short reasoning gaps. They release on turn completion/cancellation, or after 30 idle seconds following the last completed desktop call; the next call shows them again. Running tools do not count as idle. A host lease releases stale state; another conversation receives a busy result while the desktop is owned. Standalone stdio clients retain per-call indicators because they provide no DSH turn boundary. Regular mouse movement does not stop a series.
 
 Conversation rows use a mouse icon and readable action descriptions, expandable screenshots and an end-of-turn summary reconstructed from session events. Sent input is distinguished from verified effects. Supported element operations prefer UIA; pasting text no longer repositions the pointer. Coordinate actions still use the shared Windows pointer.
 
-Cancellation is cooperative at segmented-input and post-resolution execution boundaries, with held-input cleanup. Delivered actions cannot be undone, and a blocking application Provider call must return first. Resume remains explicit; a complete plugin restart creates a new control instance.
+Cancellation is cooperative at segmented-input and post-resolution execution boundaries, with held-input cleanup. Delivered actions cannot be undone, and a blocking application Provider call must return first. Esc does not request an application exit or restart and is not evidence of an application crash.

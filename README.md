@@ -48,7 +48,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 外层提供“精简 / 全部 / 自定义”三种加载方案，默认选“全部”。选择“自定义”后展开缩进的逐项清单，可按项或按组勾选。切换方案保留自定义清单；保存后在当前动作结束时生效，重启保留方案和清单。精简方案固定加载 10 项，全部方案加载 24 项；自定义按用户清单加载，允许全部关闭。
 
-0.4.3 让接管提示从首次桌面调用持续到整轮结束，覆盖截图、读取和思考间隔，并在对话中显示鼠标图标、步骤和操作摘要。修复混合版本 Desktop 的设置读取、保存与预览；插件列表显示简介，点击进入完整设置。提示显示、文字、位置和隐藏延时均可设置；Esc 后需在设置中点击“恢复桌面控制”。可点击“录制快捷键”采集额外的停止按键或组合键，保存后生效；Esc 始终保留。普通鼠标移动和程序注入的按键不触发停止。“远程与录屏可见”默认开启，支持 UU 虚拟屏幕上的接管提示，并跟随活动显示器变化刷新。详见[设置与停止说明](docs/computer-use-settings.md)。
+0.4.3 让接管提示从首次桌面调用持续到整轮结束，覆盖截图、读取和思考间隔，并在对话中显示鼠标图标、步骤和操作摘要。修复混合版本 Desktop 的设置读取、保存与预览；插件列表显示简介，点击进入完整设置。提示显示、文字、位置和隐藏延时均可设置；Esc 只停止本轮及其排队动作，下次发起任务或说“继续”可直接使用；桌面调用完成后空闲 30 秒自动收起提示。可点击“录制快捷键”采集额外的停止按键或组合键，保存后生效；Esc 始终保留。普通鼠标移动和程序注入的按键不触发停止。“远程与录屏可见”默认开启，支持 UU 虚拟屏幕上的接管提示，并跟随活动显示器变化刷新。详见[设置与停止说明](docs/computer-use-settings.md)。
 
 | 模式 | 模型初始可见的工具 | 工具定义字符数 |
 |---|---|---|
@@ -181,7 +181,7 @@ OCR 候选带 `source:"ocr"` 和物理屏幕坐标，不提供伪造的 UIA ID�
 
 Chromium、Electron 和部分 WinUI 控件可能忽略后台 PostMessage；优先使用明确目标的前台输入和剪贴板路径，并观察结果。`sent` 或后台 `verified:false` 都不代表任务已完成。
 
-输入前确认目标窗口。窗口移动后会进行坐标补偿；按标题定位时若 HWND/PID 改变，身份校验会拒绝使用旧观察。0.4.2使用 Esc 或设置中录制的自定义快捷键停止，随后在设置中恢复桌面控制。
+输入前确认目标窗口。窗口移动后会进行坐标补偿；按标题定位时若 HWND/PID 改变，身份校验会拒绝使用旧观察。0.4.3 使用 Esc 或自定义快捷键停止当前轮，下一次用户任务可直接继续，无需设置恢复。
 
 Windows 权限隔离可能阻止操作提权窗口或 UAC 安全桌面。插件适用于可访问的交互桌面；只有坐标或文字不足以判断任意图标的语义。
 
@@ -279,7 +279,7 @@ If you added a dedicated full configuration override for [#13](https://github.co
 
 Choose Lite / All / Custom in the outer preset selector; All is the default. Custom reveals the indented per-tool checklist. Switching presets preserves your custom selection. Save applies changes after the current action finishes; the preset and custom list survive restart. Lite loads 10 tools, All loads 24, and Custom loads the selected set, including an empty set.
 
-0.4.3 keeps control indicators visible through the entire desktop operation series, including observations and reasoning, and adds mouse-icon action rows and conversation summaries. It fixes settings read/save/preview compatibility in mixed-version Desktop hosts and opens full settings from a compact plugin-list introduction. Screen and pointer indicators remain visible in remote capture by default, with physical Esc stop. Configure the banner, position and hide delay in this page. Esc keeps desktop control paused until the user clicks Resume desktop control; Record an additional key or combination in settings and save to apply. Esc always remains available; ordinary mouse movement and injected keys do not stop it. See [settings and stopping guide](docs/computer-use-settings.md).
+0.4.3 keeps control indicators visible through the entire desktop operation series, including observations and reasoning, and adds mouse-icon action rows and conversation summaries. It fixes settings read/save/preview compatibility in mixed-version Desktop hosts and opens full settings from a compact plugin-list introduction. Screen and pointer indicators remain visible in remote capture by default, with physical Esc stop. Configure the banner, position and hide delay in this page. Esc stops the current series and queued input; a new user task resumes automatically without settings. Indicators hide after 30 idle seconds following the last completed desktop call; Record an additional key or combination in settings and save to apply. Esc always remains available; ordinary mouse movement and injected keys do not stop it. See [settings and stopping guide](docs/computer-use-settings.md).
 
 | Mode | Initially visible tools | Tool-definition characters |
 |---|---|---|
@@ -412,7 +412,7 @@ Check the active host's profile, reload the MCP worker and run `health`. Look fo
 
 Chromium, Electron and some WinUI controls may ignore background PostMessage input. Prefer a clearly targeted foreground/clipboard path and observe the result. Neither `sent` nor background `verified:false` establishes task completion.
 
-Confirm the target before input. Coordinate homing compensates for window movement; title-based identity checks refuse stale observations when HWND/PID changes. In 0.4.2, use Esc or the recorded custom shortcut to stop, then resume desktop control in settings.
+Confirm the target before input. Coordinate homing compensates for window movement; title-based identity checks refuse stale observations when HWND/PID changes. In 0.4.3, Esc or a custom shortcut stops the current series; the next user task can continue without changing settings.
 
 Windows privilege boundaries may block elevated windows or the UAC secure desktop. The plugin operates on an accessible interactive desktop. Text or coordinates alone do not establish arbitrary icon semantics.
 

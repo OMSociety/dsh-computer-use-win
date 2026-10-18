@@ -125,8 +125,7 @@ app.whenReady().then(async()=>{
   await until("window.snapshot.value.toolPreset==='custom'&&window.snapshot.value.enabledTools.length===24");
   await evaluate("window.clickButton('预览接管提示')");
   await until("window.snapshot.value.previewToken>0");
-  await evaluate("window.clickButton('恢复桌面控制')");
-  await until("window.snapshot.value.resumeToken>0");
+  assert.equal(await evaluate("Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='恢复桌面控制')"),false,'A new task resumes automatically; no settings resume button is needed');
   await evaluate("window.key=init=>window.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,...init}));window.clickButton('录制快捷键')");
   await until("document.querySelector('[data-recording=true]')!==null");
   assert.equal(await evaluate("window.key({key:'Control',code:'ControlLeft',ctrlKey:true})"),false,'Recording must consume modifier keys');
@@ -230,10 +229,10 @@ app.whenReady().then(async()=>{
   assert.ok(paintedImage&&!paintedImage.isEmpty());
   fs.writeFileSync(path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-page.png'),paintedImage.toPNG());
   await evaluate("window.renderPage('en')");
-  await until("document.body.textContent.includes('Resume desktop control')");
+  await until("document.body.textContent.includes('Press Esc to stop')");
   await evaluate("window.snapshot={...window.snapshot,writable:false};for(const fn of window.listeners)fn()");
   await until("document.getElementById('wincu-page-tool-click').disabled");
-  const report={passed:true,api:process.env.WCU_SETTINGS_TEST_API||'modern',navigation:'settings.section/computer-use',compatibilityCard:true,atomicSave:true,draft:true,discard:true,errorPreservesValue:true,readOnly:true,preview:true,resume:true,allToolsDefault:true,outerPresets:['lite','full','custom'],customSelectionPreserved:true,toolsCollapsedByDefault:true,individualAndGroupSelection:true,emptySelection:true,restoreAllTools:true,shortcutRecording:true,shortcutCombination:true,shortcutCancelAndBlurCleanup:true,shortcutClearDraft:true,restoreDefaultEsc:true,externalLinkButtons:true,cursorIndicatorIndependent:true,cursorIndicatorSaved:true,remoteVisibilityDefault:true,remoteVisibilitySaveAndRestore:true,themes:['light','dark'],nativeControlContrast:contrasts,languages:['zh','en'],physicalInputSent:false,screenshot:path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-page.png')};
+  const report={passed:true,api:process.env.WCU_SETTINGS_TEST_API||'modern',navigation:'settings.section/computer-use',compatibilityCard:true,atomicSave:true,draft:true,discard:true,errorPreservesValue:true,readOnly:true,preview:true,noSettingsResumeButton:true,allToolsDefault:true,outerPresets:['lite','full','custom'],customSelectionPreserved:true,toolsCollapsedByDefault:true,individualAndGroupSelection:true,emptySelection:true,restoreAllTools:true,shortcutRecording:true,shortcutCombination:true,shortcutCancelAndBlurCleanup:true,shortcutClearDraft:true,restoreDefaultEsc:true,externalLinkButtons:true,cursorIndicatorIndependent:true,cursorIndicatorSaved:true,remoteVisibilityDefault:true,remoteVisibilitySaveAndRestore:true,themes:['light','dark'],nativeControlContrast:contrasts,languages:['zh','en'],physicalInputSent:false,screenshot:path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-page.png')};
   fs.writeFileSync(path.join(process.env.WCU_SETTINGS_TEST_ROOT,'results.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify(report));win.destroy();app.quit();
 }).catch(error=>{console.error(error.stack);app.exit(1)});

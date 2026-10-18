@@ -2,6 +2,8 @@
 
 ## 0.4.3 — 2026-10-19
 
+- Esc／自定义快捷键仅停止当前轮与排队动作，下一次用户任务自动可用，移除设置中的恢复按钮；桌面调用完成后空闲 30 秒收起提示并释放占用，执行中的动作不计为空闲。 / Scope stops to the current turn, resume automatically on a new user task, remove the settings resume button, and release indicators after 30 idle seconds following a completed desktop call.
+
 - 修复部分 Desktop 安装的设置读取、保存与预览：保留实时字段元数据并兼容共享引用协议，确认宿主保存结果；缺失表单不再显示成可编辑的默认值。 / Fix settings reads, saves and preview on mixed-version Desktop installations; keep live metadata and references, and disable unavailable forms.
 - 接管提示覆盖整轮桌面操作，包括观察和思考间隔；完成、取消或异常退出后释放，租约过期避免常驻。不同对话不能交错接管桌面。 / Keep indicators through the complete operation series, release on turn completion/cancellation or stale leases, and prevent overlapping conversations from controlling the desktop.
 - 对话中增加鼠标图标操作行、可展开截图及整轮操作摘要，从已有会话事件恢复；区分发送输入和确认结果。 / Add mouse-icon action rows, expandable screenshots and durable series summaries, distinguishing sent input from verified effects.

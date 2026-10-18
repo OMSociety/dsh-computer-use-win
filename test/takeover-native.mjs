@@ -35,9 +35,10 @@ try {
   const eventProbe = spawnSync(process.env.WINDOWS_CU_POWERSHELL || 'powershell.exe', ['-NoProfile','-File',fileURLToPath(new URL('./takeover-event.ps1',import.meta.url)),'-CancelEvent',control.eventName,'-ExpectCancelled'],{encoding:'utf8',windowsHide:true,timeout:10000});
   assert.equal(eventProbe.status,0,eventProbe.stderr);
   await control.end();
-  await assert.rejects(control.begin(), error => error.message === STOPPED);
   const replacement = new TakeoverControl({ configFile, stateFile });
-  await assert.rejects(replacement.begin(), error => error.message === STOPPED);
+  await replacement.begin();
+  assert.equal(replacement.paused,false,'A new standalone operation must not require a settings resume');
+  await replacement.end();
   await replacement.close();
   await writeFile(configFile, JSON.stringify({ ...DEFAULT_SETTINGS, indicatorEnabled: false, indicatorIdleMs: 200, resumeToken: 1 }));
   await control.sync();
@@ -109,8 +110,8 @@ try {
   await new Promise(resolve=>setTimeout(resolve,2150));
   assert.equal((await control.command('status')).pointerVisible,false,'Preview marker must clean itself up');
   const report = { passed: true, physicalInputSent: false, nativeHook: true, injectedEscIgnored: true,
-    normalKeyIgnored: true, physicalEscStops: true, cancellationEvent: true, pauseSurvivesReplacement: true,
-    explicitResume: true, customKeyStops:true,customCombinationStops:true,injectedShortcutIgnored:true,injectedModifiersIgnored:true,exactModifiers:true,keyupAndRepeatConsumed:true,shortcutChangesLive:true,shortcutClearKeepsEsc:true,nativeOverlay: true, overlayWindows: shown.windows, noFocusSteal: true, idleCleanup: true,pointerMarker:true,pointerClickThrough:true,remoteCaptureVisibleByDefault:true,captureOptOutLive:true,virtualDisplayAttachResizeDetachReconnect:true,topologySource:'EnumDisplayMonitors',pointerIndependentSwitch:true,pointerLiveUpdates:true,pointerStopAndIdleCleanup:true,pointerNegativeMonitorAndDpiLayout:true,pointerPositionSource:'test-seam',liveCursorAvailable:initial.liveCursorAvailable,preview, cursorPreview, state: JSON.parse(await readFile(stateFile, 'utf8')) };
+    normalKeyIgnored: true, physicalEscStops: true, cancellationEvent: true, standaloneNextOperationAutoResumes: true,
+    legacyResumeSignal: true, customKeyStops:true,customCombinationStops:true,injectedShortcutIgnored:true,injectedModifiersIgnored:true,exactModifiers:true,keyupAndRepeatConsumed:true,shortcutChangesLive:true,shortcutClearKeepsEsc:true,nativeOverlay: true, overlayWindows: shown.windows, noFocusSteal: true, idleCleanup: true,pointerMarker:true,pointerClickThrough:true,remoteCaptureVisibleByDefault:true,captureOptOutLive:true,virtualDisplayAttachResizeDetachReconnect:true,topologySource:'EnumDisplayMonitors',pointerIndependentSwitch:true,pointerLiveUpdates:true,pointerStopAndIdleCleanup:true,pointerNegativeMonitorAndDpiLayout:true,pointerPositionSource:'test-seam',liveCursorAvailable:initial.liveCursorAvailable,preview, cursorPreview, state: JSON.parse(await readFile(stateFile, 'utf8')) };
   await writeFile(path.join(root, 'results.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ root, ...report }, null, 2));
 } finally { await control.close(); }
