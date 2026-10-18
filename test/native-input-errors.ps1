@@ -10,7 +10,10 @@ $names = @('Get-ButtonFlags', 'Click-At', 'Move-ToPoint', 'Type-Text')
 foreach ($name in $names) {
   $function = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
   if ($null -eq $function) { throw "Missing function: $name" }
-  Invoke-Expression $function.Extent.Text
+  # Bind clipboard/keys to unambiguous test types. PowerShell 7 may resolve the
+  # real WinForms assembly before a same-name Add-Type fixture on some runners.
+  $body = $function.Extent.Text.Replace('[System.Windows.Forms.Clipboard]', '[WcuTestClipboard]').Replace('[System.Windows.Forms.SendKeys]', '[WcuTestSendKeys]')
+  Invoke-Expression $body
 }
 Add-Type -TypeDefinition @'
 public static class WindowsComputerUseNative {
@@ -27,18 +30,16 @@ public static class WindowsComputerUseNative {
     Calls++; return flags == MOUSEEVENTF_LEFTDOWN ? PressResult : ReleaseResult;
   }
 }
-namespace System.Windows.Forms {
-  public static class Clipboard {
+  public static class WcuTestClipboard {
     public static string LastText;
     public static object GetDataObject() { return null; }
     public static void SetText(string value) { LastText = value; }
     public static void Clear() {}
   }
-  public static class SendKeys {
+  public static class WcuTestSendKeys {
     public static string LastKeys;
     public static void SendWait(string keys) { LastKeys = keys; }
   }
-}
 '@
 $script:FailDelay = $false
 function Test-Failsafe { return $true }
@@ -55,7 +56,7 @@ if ([WindowsComputerUseNative]::Calls -ne 0) { throw 'Mouse input was sent after
 [WindowsComputerUseNative]::MoveCalls = 0
 Type-Text 'test'
 if ([WindowsComputerUseNative]::MoveCalls -ne 0) { throw 'Typing must not reposition the shared pointer.' }
-if ([System.Windows.Forms.Clipboard]::LastText -ne 'test' -or [System.Windows.Forms.SendKeys]::LastKeys -ne '^v') { throw 'Expected simulated paste without cursor movement.' }
+if ([WcuTestClipboard]::LastText -ne 'test' -or [WcuTestSendKeys]::LastKeys -ne '^v') { throw 'Expected simulated paste without cursor movement.' }
 [WindowsComputerUseNative]::MoveOk = $true
 [WindowsComputerUseNative]::CursorOk = $false
 Assert-Error { Type-Text 'test' } 'COMPUTER_USE_INPUT_UNAVAILABLE'
