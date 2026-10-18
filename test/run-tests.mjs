@@ -15,6 +15,8 @@ const suites = [
   ['source-encoding', process.execPath, ['test/source-encoding.mjs']],
   ['tool-context', process.execPath, ['test/tool-context.mjs']],
   ['client-settings-contract', process.execPath, ['test/client-settings-contract.mjs']],
+  ['takeover-native', process.execPath, ['test/takeover-native.mjs']],
+  ['takeover-cancellation', powershell, ['-NoProfile', '-File', 'test/takeover-cancellation.ps1']],
   ['selftest', process.execPath, ['mcp/server.mjs', '--self-test']],
   ['mcp-roundtrip', process.execPath, ['test/mcp-test.mjs', 'mcp/server.mjs', 'windows_computer_use_wait', '{"milliseconds":1}']],
   ['profile-resolution', process.execPath, ['test/profile-resolution.mjs']],
@@ -42,7 +44,7 @@ for (const [name, command, args] of suites) {
   const start = Date.now();
   const result = spawnSync(command, args, {
     cwd: checkout,
-    env: { ...process.env, TEMP: temp, TMP: temp, WCU_INDICATOR: '0', WINDOWS_CU_POWERSHELL: powershell },
+    env: { ...process.env, TEMP: temp, TMP: temp, NODE_ENV: 'test', WCU_TEST_NO_TAKEOVER: '1', WCU_INDICATOR: '0', WINDOWS_CU_POWERSHELL: powershell },
     windowsHide: true,
     encoding: 'utf8',
     timeout: 180000,

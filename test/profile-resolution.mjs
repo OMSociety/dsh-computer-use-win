@@ -20,12 +20,14 @@ try {
     name: "dsh-computer-use-win",
     version: "0.0.0",
     main: "mcp/server.mjs",
+    exports: {'.':'./mcp/dsh-plugin.mjs','./mcp/dsh-plugin.mjs':'./mcp/dsh-plugin.mjs','./mcp/server.mjs':'./mcp/server.mjs'},
   }));
   await writeFile(serverPath, "export {};\n");
   const adapterPath = path.join(packageDir, 'mcp', 'dsh-plugin.mjs');
   await writeFile(adapterPath, 'export {};\n');
   const resolvedAdapter = createRequire(path.join(profileDir, 'package.json')).resolve('dsh-computer-use-win/mcp/dsh-plugin.mjs');
   assert.equal(path.normalize(resolvedAdapter), path.normalize(adapterPath));
+  assert.equal(createRequire(path.join(profileDir, 'package.json')).resolve('dsh-computer-use-win'), adapterPath);
 
   // DSH sets baseUrl to the directory containing cordis.yml.
   const baseUrl = pathToFileURL(path.join(profileDir, "cordis.yml")).href;
@@ -41,7 +43,7 @@ try {
   const patch = await readFile(patchPath, "utf8");
   assert.match(
     patch,
-    /name: 'dsh-computer-use-win\/mcp\/dsh-plugin\.mjs'/,
+    /name: 'dsh-computer-use-win'/,
   );
 
   console.log(JSON.stringify({

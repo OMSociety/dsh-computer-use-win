@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { TakeoverControl, STOPPED } from './takeover.mjs';
+import { TOOL_NAMES, normalizeEnabledTools } from './settings.mjs';
 
 const MCP_PROTOCOL_VERSION = "2024-11-05";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -536,11 +538,15 @@ if (!['lite', 'full'].includes(toolMode)) throw new Error('WCU_TOOL_MODE must be
 const prefix = 'windows_computer_use_';
 const discoveryName = prefix + 'tools';
 const liteNames = ['list_windows', 'find', 'click', 'scroll', 'type_text', 'keypress', 'ocr', 'screenshot', 'wait_for'];
-const initialNames = (toolMode === 'lite' ? liteNames : tools.map(tool => tool.name.slice(prefix.length))).map(name => prefix + name);
-const enabledTools = new Set([...initialNames, discoveryName]);
+if (JSON.stringify([...TOOL_NAMES].sort()) !== JSON.stringify([...tools.map(tool=>tool.name.slice(prefix.length)),'tools'].sort())) throw new Error('Tool settings catalogue does not match the MCP tool definitions');
+const configuredSelection = process.env.WCU_ENABLED_TOOLS === undefined ? null : normalizeEnabledTools(JSON.parse(process.env.WCU_ENABLED_TOOLS));
+const selectionMode = configuredSelection === null ? toolMode : configuredSelection.length === TOOL_NAMES.length ? 'full' : 'custom';
+const allowedTools = new Set((configuredSelection ?? TOOL_NAMES).map(name=>prefix+name));
+const initialNames = configuredSelection ? configuredSelection.map(name=>prefix+name) : [...(toolMode === 'lite' ? liteNames : tools.map(tool => tool.name.slice(prefix.length))).map(name => prefix + name),discoveryName];
+const enabledTools = new Set(initialNames);
 const discoveryTool = {
   name: discoveryName,
-  description: 'List capabilities; describe reads full usage/schema for one tool; enable loads named tools, disable unloads, reset restores startup mode. Load before calling hidden tools.',
+  description: 'List capabilities; describe reads full usage/schema for one tool; enable loads named tools allowed in settings, disable unloads, reset restores startup selection.',
   inputSchema: { type: 'object', additionalProperties: false, properties: {
     operation: { type: 'string', enum: ['list','describe','enable','disable','reset'], default: 'list' },
     names: { type: 'array', maxItems: 23, items: { type: 'string' } }
@@ -551,13 +557,13 @@ function advertisedTools() {
     name: tool.name,
     description: conciseDescriptions[tool.name.slice(prefix.length)],
     inputSchema: compactSchema(tool.inputSchema)
-  })), discoveryTool];
+  })), ...(enabledTools.has(discoveryName)?[discoveryTool]:[])];
 }
 function manageTools(args) {
   args = validateArguments(discoveryTool.inputSchema, args);
   const names = (args.names || []).map(name => name.startsWith(prefix) ? name : prefix + name);
   // Resolve every name before mutation, so one typo cannot partially change
-  // the client's advertised list. Discovery itself always remains available.
+  // the client's advertised list. Management is available only if selected.
   const definitions = names.map(name => {
     const tool = tools.find(tool => tool.name === name);
     if (!tool) throw new Error(`Unknown tool: ${name}`);
@@ -565,8 +571,8 @@ function manageTools(args) {
   });
   let result;
   if (args.operation === 'list') {
-    result = { mode: toolMode, tools: tools.map(tool => ({
-      name: tool.name.slice(prefix.length), description: conciseDescriptions[tool.name.slice(prefix.length)], enabled: enabledTools.has(tool.name)
+    result = { mode: selectionMode, tools: tools.map(tool => ({
+      name: tool.name.slice(prefix.length), description: conciseDescriptions[tool.name.slice(prefix.length)], enabled: enabledTools.has(tool.name), available: allowedTools.has(tool.name)
     })) };
   } else if (args.operation === 'describe') {
     if (definitions.length !== 1) throw new Error('INVALID_ARGUMENTS: describe requires exactly one name');
@@ -574,11 +580,12 @@ function manageTools(args) {
   } else {
     if (args.operation === 'reset' && names.length) throw new Error('INVALID_ARGUMENTS: reset takes no names');
     if (args.operation !== 'reset' && !names.length) throw new Error('INVALID_ARGUMENTS: enable/disable requires names');
+    if (args.operation === 'enable' && names.some(name=>!allowedTools.has(name))) throw new Error('TOOL_DISABLED_IN_SETTINGS: Change the user-selected tools in Settings > Computer Use before enabling this tool.');
     const before = [...enabledTools].sort().join(',');
     if (args.operation === 'reset') {
-      enabledTools.clear(); for (const name of [...initialNames, discoveryName]) enabledTools.add(name);
+      enabledTools.clear(); for (const name of initialNames) enabledTools.add(name);
     } else for (const name of names) args.operation === 'enable' ? enabledTools.add(name) : enabledTools.delete(name);
-    result = { mode: toolMode, enabled: advertisedTools().map(tool => tool.name) };
+    result = { mode: selectionMode, enabled: advertisedTools().map(tool => tool.name) };
     if (before !== [...enabledTools].sort().join(',')) send({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' });
   }
   return { content: [{ type: 'text', text: safeJson(result) }] };
@@ -638,6 +645,9 @@ const backendWaiters = new Map(); // id -> {resolve, reject, timer, proc}
 const pendingToolCalls = new Map(); // MCP request id -> {proc}
 const retiringBackends = new WeakSet();
 const interruptibleActions = new Set(["health", "snapshot", "screenshot", "tree", "list_windows", "find", "element_info", "wait", "ocr", "wait_for"]);
+const takeover = new TakeoverControl({ powershell, config: process.env.WCU_SETTINGS_JSON ? JSON.parse(process.env.WCU_SETTINGS_JSON) : {}, onStop(error) {
+  for (const request of pendingToolCalls.values()) { request.takeoverError = error.message; request.stoppedByUser = error.message === STOPPED; cancelBackendRequest(request); }
+} });
 
 function dispatchNextBackend(proc) {
   if (retiringBackends.has(proc)) return;
@@ -654,10 +664,10 @@ function dispatchNextBackend(proc) {
 }
 
 function cancelBackendRequest(request) {
+  if (request) request.cancelled = true;
   const proc = request?.proc;
   const entry = [...backendWaiters.entries()].find(([, w]) => w.request === request);
   if (!proc || !entry) return;
-  request.cancelled = true;
   const [id, w] = entry;
   const error = new Error("COMPUTER_USE_CANCELLED");
   if (!w.sent) {
@@ -705,6 +715,7 @@ function spawnBackend() {
     ],
     {
       cwd: pluginRoot,
+      env: { ...process.env, WCU_CANCEL_EVENT: takeover.disabledForTest ? '' : takeover.eventName },
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true
     }
@@ -770,7 +781,25 @@ function killBackend(error = new Error("Backend process stopped"), proc = backen
   }
 }
 
-function runBackend(action, args = {}, timeoutMs = 30000, request) {
+let takeoverSetup = Promise.resolve();
+async function runBackend(action, args = {}, timeoutMs = 30000, request) {
+  const changesDesktop = inputActions.has(action) || args.activate === true;
+  let acquired = false;
+  // Reserve preparation in arrival order. Otherwise awaiting the native
+  // indicator can let a later observation reach the backend before its input.
+  const prepared = takeoverSetup.then(async () => {
+    if (request?.cancelled) throw new Error(request.stoppedByUser ? STOPPED : 'COMPUTER_USE_CANCELLED');
+    if (changesDesktop) { await takeover.begin(); acquired = true; }
+  });
+  takeoverSetup = prepared.catch(() => {});
+  try {
+    await prepared;
+    if (request?.cancelled) throw new Error(request.stoppedByUser ? STOPPED : 'COMPUTER_USE_CANCELLED');
+    return await dispatchBackend(action, { ...args, _wcuCornerFailsafe: false, _wcuTakeoverPid: takeover.child?.pid ?? 0 }, timeoutMs, request);
+  } finally { if (acquired) await takeover.end(); }
+}
+
+function dispatchBackend(action, args = {}, timeoutMs = 30000, request) {
   const proc = ensureBackend();
   if (request) request.proc = proc;
   const id = ++backendNextId;
@@ -793,6 +822,7 @@ function runBackend(action, args = {}, timeoutMs = 30000, request) {
 }
 
 async function callTool(name, args, request) {
+  if (!allowedTools.has(name) && TOOL_NAMES.includes(name.slice(prefix.length))) throw new Error('TOOL_DISABLED_IN_SETTINGS: This tool is disabled by the user in Settings > Computer Use.');
   if (name === discoveryName) return manageTools(args);
   const definition = tools.find(tool => tool.name === name);
   if (!definition) throw new Error(`Unknown tool: ${name}`);
@@ -956,7 +986,7 @@ async function handleRequest(message) {
     pendingToolCalls.set(id, request);
     try {
       const result = await callTool(params?.name, params?.arguments === undefined ? {} : params.arguments, request);
-      if (request.cancelled) return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: "COMPUTER_USE_CANCELLED_AFTER_CURRENT_ACTION" }] } };
+      if (request.cancelled) return { jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: request.takeoverError || "COMPUTER_USE_CANCELLED_AFTER_CURRENT_ACTION" }] } };
       return { jsonrpc: "2.0", id, result };
     } catch (error) {
       return {
@@ -964,7 +994,7 @@ async function handleRequest(message) {
         id,
         result: {
           isError: true,
-          content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }]
+          content: [{ type: "text", text: request.takeoverError || (error instanceof Error ? error.message : String(error)) }]
         }
       };
     } finally {
@@ -1108,7 +1138,7 @@ if (process.argv.includes("--self-test")) {
       process.exit(1);
     });
 } else if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.on("exit", () => killBackend());
+  process.on("exit", () => { killBackend(); takeover.child?.stdin.end(); });
   process.stdin.on("data", (chunk) => {
     try {
       ingest(chunk);
@@ -1128,7 +1158,7 @@ let stdinEnded = false;
 
 function maybeExitAfterStdinEnd() {
   if (stdinEnded && pendingRequests === 0) {
-    process.exit(0);
+    takeover.close().finally(() => process.exit(0));
   }
 }
 

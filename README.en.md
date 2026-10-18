@@ -13,7 +13,7 @@
 
 Give a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) agent access to real Windows apps: find controls, inspect screenshots, read visible text, click, type and manage windows.
 
-**23 desktop capabilities · Lite / Full modes · PowerShell 5.1 by default**
+**23 desktop capabilities · Choose which tools to load · PowerShell 5.1 by default**
 
 [Quick start](#quick-start) · [Try a task](#try-a-task) · [See it in action](#see-it-in-action) · [Tools and options](#tools-and-options) · [FAQ](#faq) · [简体中文 ↑](#简体中文)
 
@@ -46,14 +46,16 @@ If you added a dedicated full configuration override for [#13](https://github.co
 
 ### Tool modes and context
 
-**Lite is the default.** Open **Settings → Plugins → Configurable plugins → Windows computer use**, choose **Tool mode**, and save. The MCP worker reloads. Remove legacy full MCP configuration overrides first.
+Choose Lite / All / Custom in the outer preset selector; All is the default. Custom reveals the indented per-tool checklist. Switching presets preserves your custom selection. Save applies changes after the current action finishes; the preset and custom list survive restart. Lite loads 10 tools, All loads 24, and Custom loads the selected set, including an empty set.
+
+0.4.2 adds screen and pointer indicators, visible in remote capture by default, plus physical Esc stop. Configure the banner, position and hide delay in this page. Esc keeps desktop control paused until the user clicks Resume desktop control; Record an additional key or combination in settings and save to apply. Esc always remains available; ordinary mouse movement and injected keys do not stop it. See [settings and stopping guide](docs/computer-use-settings.md).
 
 | Mode | Initially visible tools | Tool-definition characters |
 |---|---|---|
-| Lite (default) | 9 common tools + 1 discovery tool | 9,046; 79.2% less than 0.3.1 |
-| Full | 23 desktop tools + 1 discovery tool | 20,259; 53.4% less than 0.3.1 |
+| Lite | 9 common tools + 1 discovery tool | 9,037; 79.2% less than 0.3.1 |
+| All (default) | 23 desktop tools + 1 discovery tool | 20,250; 53.4% less than 0.3.1 |
 
-Lite includes window listing, find, click, scroll, typing, keys, OCR, screenshots and condition waits. For dragging, UIA trees or window management, the agent can use `tools` to read one tool's full instructions and load it on demand. Disable it afterward or use `reset` to restore the initial set. Capabilities and argument validation are preserved.
+Tools unchecked by the user are unavailable and cannot be re-enabled through `tools`. If tool management is selected, the agent can read instructions and temporarily unload allowed tools; `reset` restores the saved startup selection. Standalone MCP still supports Lite. Capabilities and argument validation are preserved.
 
 These are measured MCP `tools/list` character counts using the same serialization (0.3.1: 43,495). Token counts depend on the tokenizer, host wrapping and conversation history. Unloading does not erase instructions or messages already in a conversation. See [on-demand tools](docs/tool-context.md) for configuration and call examples.
 
@@ -179,7 +181,7 @@ Check the active host's profile, reload the MCP worker and run `health`. Look fo
 
 Chromium, Electron and some WinUI controls may ignore background PostMessage input. Prefer a clearly targeted foreground/clipboard path and observe the result. Neither `sent` nor background `verified:false` establishes task completion.
 
-Confirm the target before input. Coordinate homing compensates for window movement; title-based identity checks refuse stale observations when HWND/PID changes. Park the physical mouse in the default screen corner for about 500 ms to engage the input failsafe; move it away to resume.
+Confirm the target before input. Coordinate homing compensates for window movement; title-based identity checks refuse stale observations when HWND/PID changes. In 0.4.2, use Esc or the recorded custom shortcut to stop, then resume desktop control in settings.
 
 Windows privilege boundaries may block elevated windows or the UAC secure desktop. The plugin operates on an accessible interactive desktop. Text or coordinates alone do not establish arbitrary icon semantics.
 
@@ -242,7 +244,7 @@ MIT licensed. Derived from [cgissing/windows-computer-use](https://github.com/cg
 
 让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 agent 读取并操作真实 Windows 应用：找控件、看截图、识别文字、点击、输入和管理窗口。
 
-**23 项桌面能力 · 精简 / 全能模式 · 默认支持 PowerShell 5.1**
+**23 项桌面能力 · 自选加载工具 · 默认支持 PowerShell 5.1**
 
 [快速开始](#快速开始) · [使用示例](#使用示例) · [实际演示](#实际演示) · [工具与进阶](#工具与进阶) · [常见问题](#常见问题) · [English ↑](#english)
 
@@ -275,14 +277,16 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 ### 工具模式与上下文
 
-默认使用**精简模式**。打开 **设置 → 插件 → 可配置插件 → Windows 桌面操作**，选择精简或全能并保存；MCP worker 会重新加载。已安装的旧版完整 MCP 配置覆盖应先移除。
+外层提供“精简 / 全部 / 自定义”三种加载方案，默认选“全部”。选择“自定义”后展开缩进的逐项清单，可按项或按组勾选。切换方案保留自定义清单；保存后在当前动作结束时生效，重启保留方案和清单。精简方案固定加载 10 项，全部方案加载 24 项；自定义按用户清单加载，允许全部关闭。
+
+0.4.2加入接管光晕、提示条和物理 Esc 停止。提示显示、文字、位置和隐藏延时均可设置；Esc 后需在设置中点击“恢复桌面控制”。可点击“录制快捷键”采集额外的停止按键或组合键，保存后生效；Esc 始终保留。普通鼠标移动和程序注入的按键不触发停止。“远程与录屏可见”默认开启，支持 UU 虚拟屏幕上的接管提示，并跟随活动显示器变化刷新。详见[设置与停止说明](docs/computer-use-settings.md)。
 
 | 模式 | 模型初始可见的工具 | 工具定义字符数 |
 |---|---|---|
-| 精简（默认） | 9 个常用工具 + 1 个发现入口 | 9,046，较 0.3.1 减少 79.2% |
-| 全能 | 23 项桌面工具 + 1 个发现入口 | 20,259，较 0.3.1 减少 53.4% |
+| 精简 | 9 个常用工具 + 1 个发现入口 | 9,037，较 0.3.1 减少 79.2% |
+| 全部（默认） | 23 项桌面工具 + 1 个发现入口 | 20,250，较 0.3.1 减少 53.4% |
 
-精简模式保留窗口列表、查找、点击、滚动、输入、按键、OCR、截图和条件等待。需要拖动、无障碍树或窗口管理时，agent 可通过 `tools` 发现入口读取单个工具的详细说明，再加载它；用完可卸载或 `reset` 恢复默认集合。能力和参数校验都保留。
+用户取消勾选的工具不会加载，也不能通过 `tools` 重新启用。保留工具管理时，agent 可以查看说明并临时卸载已获准的工具；`reset` 只恢复用户保存的启动集合。独立 MCP 仍支持原精简模式。能力和参数校验保留。
 
 数字来自同一序列化方式下的实际 MCP `tools/list` 定义，原版为 43,495 字符；模型 token 数取决于分词器、宿主包装和会话历史。加载的说明及历史消息不会从已有对话中自动消失。更多配置与调用示例见[按需工具说明](docs/tool-context.md)。
 
@@ -408,7 +412,7 @@ OCR 候选带 `source:"ocr"` 和物理屏幕坐标，不提供伪造的 UIA ID�
 
 Chromium、Electron 和部分 WinUI 控件可能忽略后台 PostMessage；优先使用明确目标的前台输入和剪贴板路径，并观察结果。`sent` 或后台 `verified:false` 都不代表任务已完成。
 
-输入前确认目标窗口。窗口移动后会进行坐标补偿；按标题定位时若 HWND/PID 改变，身份校验会拒绝使用旧观察。将物理鼠标停在默认屏幕角落约 500 ms 可触发输入急停，移开后恢复。
+输入前确认目标窗口。窗口移动后会进行坐标补偿；按标题定位时若 HWND/PID 改变，身份校验会拒绝使用旧观察。0.4.2使用 Esc 或设置中录制的自定义快捷键停止，随后在设置中恢复桌面控制。
 
 Windows 权限隔离可能阻止操作提权窗口或 UAC 安全桌面。插件适用于可访问的交互桌面；只有坐标或文字不足以判断任意图标的语义。
 

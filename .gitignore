@@ -13,3 +13,8 @@ Thumbs.db
 .secrets/
 *.token
 .env
+
+# Local navigation and observation history
+FILE_LOG.md
+FILE_INDEX.json
+FILE_HISTORY.jsonl

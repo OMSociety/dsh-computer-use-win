@@ -1,4 +1,4 @@
-# Exercise the actual backend function bodies with a fake native API.
+﻿# Exercise the actual backend function bodies with a fake native API.
 # No user32 calls, clipboard access, or physical mouse/keyboard input.
 $ErrorActionPreference = 'Stop'
 $source = Join-Path $PSScriptRoot '../scripts/windows-uia.ps1'
@@ -29,6 +29,7 @@ public static class WindowsComputerUseNative {
 }
 '@
 $script:FailDelay = $false
+function Test-Failsafe { return $true }
 function Start-Sleep { param([int]$Milliseconds) if ($script:FailDelay -and $Milliseconds -eq 30) { throw 'SIMULATED_DELAY_FAILURE' } }
 function Assert-Error { param([scriptblock]$Body, [string]$Pattern)
   $caught = $false

@@ -5,12 +5,12 @@
 # named mcp__wincu__<tool> (health, snapshot, click, type_text, ocr, ...).
 #
 # DSH resolves the adapter as a package specifier in the current profile.
-# Its Config exposes Lite/Full in the plugin settings form. The adapter resolves
+# Its Config exposes a per-tool selection, defaulting to all. The adapter resolves
 # server.mjs relative to itself and delegates to the official bridge with the
 # child-only ELECTRON_RUN_AS_NODE flag. No hard-coded profile paths or compilation.
 
 - insert:
     - id: mcp-dsh-computer-use-win
-      name: 'dsh-computer-use-win/mcp/dsh-plugin.mjs'
+      name: 'dsh-computer-use-win'
       config:
-        mode: lite
+        mode: full

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2 — 2026-10-18
+
+- 修复 DSH Desktop 设置入口：通过包入口发现客户端，并在“设置 → Computer Use”及插件页面注册界面，支持现代 Config/volatile 字段与旧设置接口。提供中英界面、深浅主题、草稿、原子保存、失败反馈和重启持久化。 / Fix Desktop client discovery and mount Settings → Computer Use, supporting modern Config/volatile fields and legacy settings, bilingual themes and persisted saves.
+- 工具加载提供“精简 / 全部 / 自定义”，默认全部 24 项；内部自选清单支持按组选择、全选和全部关闭，切换方案保留勾选。用户关闭的工具不能由 agent 重新开启。 / Add Lite / All / Custom presets (All by default), a nested checklist and enforced user-selected availability.
+- 接管时显示点击穿透、不抢焦点的屏幕边缘、可配置提示条及鼠标光环／DSH 标识；操作结束后隐藏，支持独立开关和预览。 / Show non-activating, click-through screen and pointer indicators during desktop input.
+- 使用物理 Esc 或录制的自定义按键／组合键停止；暂停保持到用户明确恢复，取消排队输入并清理按住的输入。普通鼠标移动、其他按键和程序注入的按键不会触发停止。 / Stop with physical Esc or a recorded shortcut, retain a manual-resume pause, cancel queued input and release held input during cleanup.
+- 提示默认在远程与录屏中可见；按活动显示器、显示／会话事件和 500ms 拓扑复核更新，适配虚拟屏幕、坐标、分辨率和 DPI 变化。 / Make indicators visible to remote capture by default and refresh them when active virtual-display layouts change.
+- 沿用官方 MCP 桥；显示设置更新不替换当前输入 worker，工具方案变化等待动作结束。独立 MCP 保留原命名与 lite/full 环境变量。 / Keep official MCP transport and standalone compatibility, applying tool changes after active input finishes.
+- 在等待原生接管提示启动期间保留后端请求的到达顺序，避免后续读取越过输入，并验证取消仍等待输入收尾。 / Preserve backend request order while preparing the indicator, including cancellation cleanup.
+- 验证涵盖 Windows 回归、双代设置与实际 Desktop 保存／重启；实际三屏捕获及 UU 虚拟屏幕的提示条、鼠标标识均确认可见。动态显示器变化通过测试入口驱动真实渲染逻辑验证。 / Validation includes regression suites, actual Desktop persistence, three-monitor capture and user-confirmed UU virtual-screen visibility; topology changes use the real renderer through a test seam.
+
 ## 0.4.1 — 2026-10-15
 
 - Complete the promised DSH settings entry with a bilingual browser card under Configurable plugins. Stage edits until Save, persist the mode through the host settings service, reload the official MCP bridge, and restore the saved preference after restart. Preserve manual entry configuration when no settings provider is mounted.

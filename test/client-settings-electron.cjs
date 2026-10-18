@@ -1,63 +1,194 @@
 const {app,BrowserWindow}=require('electron');
-const fs=require('node:fs');
-const path=require('node:path');
-const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 app.commandLine.appendSwitch('disable-gpu');
 app.setPath('userData',path.join(process.env.WCU_SETTINGS_TEST_ROOT,'user-data'));
 app.whenReady().then(async()=>{
-  // CI can lack a visible compositor surface. Software offscreen painting
-  // still renders the real React card and supplies its actual pixels.
-  const win=new BrowserWindow({show:false,width:900,height:500,webPreferences:{nodeIntegration:true,contextIsolation:false,sandbox:false,offscreen:true,backgroundThrottling:false}});
-  let paintedImage;let paintCount=0;
-  win.webContents.on('paint',(_event,_dirty,image)=>{paintedImage=image;paintCount++;});
+  const win=new BrowserWindow({show:false,width:940,height:1280,webPreferences:{nodeIntegration:true,contextIsolation:false,sandbox:false,offscreen:true,backgroundThrottling:false}});
+  let paintedImage,paintCount=0;win.webContents.on('paint',(_e,_d,image)=>{paintedImage=image;paintCount++});
   const evaluate=code=>win.webContents.executeJavaScript(code);
-  const until=async code=>{const end=Date.now()+5000;while(!await evaluate(code)){if(Date.now()>end)throw Error('Settings card condition timed out: '+code);await new Promise(r=>setTimeout(r,20))}};
-  await win.loadURL('data:text/html,<html><meta charset="utf-8"><body style="font-family:Arial;padding:24px;background:white"><ul id="app" style="padding:0"></ul></body></html>');
-  await evaluate(`
-    const nativeRequire=window.require;
-    const React=nativeRequire(${JSON.stringify(process.env.WCU_REACT_ENTRY)});
-    const ReactDOM=nativeRequire(${JSON.stringify(process.env.WCU_REACT_DOM_ENTRY)});
-    window.require=name=>name==='react'?React:nativeRequire(name);
-    window.__ModuleLoader__={load:entry=>{window.clientModule=entry.factory();window.clientId=entry.id;}};
-    void 0;
-  `);
+  const until=async code=>{const end=Date.now()+7000;const settled='!!(('+code+') && (!window.snapshot?.writable || document.querySelector("[data-recording=true]") || !document.getElementById("wincu-page-remoteIndicatorVisible")?.disabled))';while(!await evaluate(settled)){if(Date.now()>end)throw Error('Settings condition timed out: '+code);await new Promise(r=>setTimeout(r,20))}};
+  await win.loadURL('data:text/html,<html><meta charset="utf-8"><body style="font-family:Arial;padding:24px;background:white;color:%23203040"><div id="app"></div></body></html>');
+  await evaluate(
+    'const nativeRequire=window.require;'+
+    'const React=nativeRequire('+JSON.stringify(process.env.WCU_REACT_ENTRY)+');'+
+    'const ReactDOM=nativeRequire('+JSON.stringify(process.env.WCU_REACT_DOM_ENTRY)+');'+
+    "window.require=undefined;"+
+    "window.__ModuleLoader__={load:entry=>{window.clientModule=entry.factory(name=>name==='react'?React:nativeRequire(name))}};void 0;"
+  );
   await evaluate(fs.readFileSync(path.join(__dirname,'../mcp/client.js'),'utf8'));
-  await evaluate(`
-    window.writes=[];window.listeners=new Set();window.snapshot={value:{mode:'lite'},writable:true};window.failSave=false;
-    const scope={getSnapshot:()=>window.snapshot,subscribe:listener=>{window.listeners.add(listener);return ()=>window.listeners.delete(listener)},set:async(field,value)=>{
-      if(window.failSave){window.failSave=false;throw Error('fixture rejected save')}
-      if(field!=='mode'||!['lite','full'].includes(value))throw Error('invalid fixture write');
-      window.writes.push(value);window.snapshot={...window.snapshot,value:{mode:value}};for(const notify of window.listeners)notify();
-    }};
-    const ctx={effect:fn=>fn(),locale:{register:(ns,dict)=>{window.dictionary=dict;return ()=>{}}},settingsScope:{bind:options=>{window.namespace=options.namespace;return scope}},slots:{inject:(name,fn)=>fn(),register:(entry,card)=>{window.slot=entry;window.Card=card;return ()=>{}}}};
-    window.clientModule.apply(ctx);
-    window.root=ReactDOM.createRoot(document.getElementById('app'));
-    window.renderCard=lang=>window.root.render(React.createElement(window.Card,{...window.slot.inject(),t:key=>window.dictionary[lang][key]}));
-    window.renderCard('zh');
-    window.selectMode=value=>{const select=document.getElementById('wincu-tool-mode');select.value=value;select.dispatchEvent(new Event('change',{bubbles:true}))};
-    window.clickButton=text=>Array.from(document.querySelectorAll('button')).find(b=>b.textContent===text).click();
-    void 0;
-  `);
-  await until(`!!document.getElementById('wincu-tool-mode')`);
-  assert.equal(await evaluate('window.namespace'),'windows-computer-use');assert.equal(await evaluate('window.slot.name'),'settings.plugin.item');
-  await evaluate(`window.selectMode('full')`);await until(`!Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='保存').disabled`);
-  assert.deepEqual(await evaluate('window.writes'),[],'Selection must not persist before Save');
-  await evaluate(`window.clickButton('取消修改')`);await until(`document.getElementById('wincu-tool-mode').value==='lite'`);
-  await evaluate(`window.selectMode('full')`);await evaluate(`window.clickButton('保存')`);await until(`document.body.textContent.includes('已保存')`);
-  assert.deepEqual(await evaluate('window.writes'),['full']);
-  await evaluate(`window.selectMode('lite')`);await evaluate(`window.clickButton('保存')`);await until(`window.snapshot.value.mode==='lite'`);
-  await evaluate(`window.failSave=true;window.selectMode('full')`);await evaluate(`window.clickButton('保存')`);await until(`document.body.textContent.includes('fixture rejected save')`);
-  assert.equal(await evaluate('window.snapshot.value.mode'),'lite');
-  const beforeDiscard=paintCount;
-  await evaluate(`window.clickButton('取消修改')`);
-  await until(`document.getElementById('wincu-tool-mode').value==='lite'&&!document.body.textContent.includes('fixture rejected save')`);
+  await evaluate(
+    "window.writes=[];window.listeners=new Set();window.snapshot={value:{mode:'lite',indicatorEnabled:true,indicatorText:'DSH 正在控制电脑',indicatorPosition:'top',indicatorIdleMs:800,stopShortcut:''},revision:1,writable:true};window.failSave=false;window.entries=[];"+
+    "window.scope={getSnapshot:()=>window.snapshot,subscribe:fn=>{window.listeners.add(fn);return ()=>window.listeners.delete(fn)},load:async()=>{},set:async(field,value)=>{window.writes.push({field,value});window.snapshot={...window.snapshot,value:{...window.snapshot.value,[field]:value}};for(const fn of window.listeners)fn()}};"+
+    "window.ctx={effect:fn=>fn(),locale:{register:(_ns,dict)=>{window.dictionary=dict;return ()=>{}},bind:()=>key=>window.dictionary.zh[key]},settingsScope:{bind:options=>{window.namespace=options.namespace;return window.scope}},slots:{inject:(_name,fn)=>fn(),register:(entry,card)=>{window.entries.push({entry,card});return ()=>{}}},"+
+    "connection:{api:{settings:{mutate:async request=>{if(window.failSave){window.failSave=false;return {result:{ok:false,message:'fixture rejected save'}}}if(request.expectedRevision!==window.snapshot.revision)throw Error('revision conflict');window.writes.push(request.ops);const value={...window.snapshot.value};for(const op of request.ops)value[op.path[0]]=JSON.parse(JSON.stringify(op.value));window.snapshot={...window.snapshot,value,revision:window.snapshot.revision+1};for(const fn of window.listeners)fn();return {result:{ok:true}}}}}}};"+
+    "window.apiMode="+JSON.stringify(process.env.WCU_SETTINGS_TEST_API||'modern')+";window.ctx.configForms={get:ns=>{window.namespace=ns;return window.scope}};if(window.apiMode==='modern')window.scope.mutate=async(ops,revision)=>{const r=await window.ctx.connection.api.settings.mutate({ops,expectedRevision:revision});return r.result.ok};window.ctx.inject=(names,fn)=>{if((window.apiMode==='modern'&&names.includes('configForms'))||(window.apiMode==='legacy'&&names.includes('settingsScope')))fn(window.ctx)};window.clientModule.apply(window.ctx);window.page=window.entries.find(x=>x.entry.name==='settings.section');"+
+    "window.root=ReactDOM.createRoot(document.getElementById('app'));"+
+    "window.renderPage=lang=>window.root.render(React.createElement(window.page.card,{...window.page.entry.inject(),t:key=>window.dictionary[lang][key]}));"+
+    "window.renderPage('zh');"+
+    "window.chooseTool=name=>document.getElementById('wincu-page-tool-'+name).click();window.choosePosition=value=>document.getElementById('wincu-page-indicatorPosition-'+value).click();"+
+    "window.clickButton=text=>Array.from(document.querySelectorAll('button')).find(b=>b.textContent===text).click();void 0;"
+  );
+  await until("!!document.getElementById('wincu-page-tool-screenshot')");
+  assert.equal(await evaluate("document.querySelector('[data-wincu-tools]').open"),false,'Tool checklist must be collapsed by default');
+  assert.equal(await evaluate("[...document.querySelectorAll('[data-wincu-tool]')].filter(x=>x.checked).length"),24,'All tools must be selected by default, including in an older lite profile');
+  assert.equal(await evaluate("document.getElementById('wincu-page-toolPreset-full').checked"),true);
+  assert.equal(await evaluate("document.querySelector('[data-wincu-tools]').hidden"),true,'Custom list belongs inside the Custom preset');
+  await evaluate("document.getElementById('wincu-page-toolPreset-lite').click()");
+  await until("document.querySelector('[data-wincu-tool-count]').textContent.includes('10 / 24')");
+  await evaluate("window.clickButton('放弃更改')");
+  await until("document.getElementById('wincu-page-toolPreset-full').checked");
+  const community=await evaluate("({links:[...document.querySelectorAll('[data-wincu-community] a')].map(a=>({href:a.href,target:a.target,rel:a.rel})),text:document.querySelector('[data-wincu-settings]').textContent,first:document.querySelector('.wcu-header').firstElementChild.hasAttribute('data-wincu-community')})");
+  assert.deepEqual(community.links.map(a=>a.href),['https://github.com/Yu-tao-Li/dsh-computer-use-win','https://github.com/Yu-tao-Li/dsh-computer-use-win/issues/new']);
+  assert.ok(community.first&&community.links.every(a=>a.target==='_blank'&&a.rel.includes('noopener')));
+  const externalLinks=await evaluate("[...document.querySelectorAll('[data-wincu-community] a')].map(a=>({icons:a.querySelectorAll('svg').length,label:a.getAttribute('aria-label'),border:getComputedStyle(a).borderTopStyle,cursor:getComputedStyle(a).cursor}))");
+  assert.ok(externalLinks.every(a=>a.icons===2&&a.label.includes('新窗口')&&a.border==='solid'&&a.cursor==='pointer'),'External actions must have visible button borders, icons and accessible destinations');
+  assert.ok(community.text.includes('您的 Star 就是我更新的动力')&&community.text.includes('您来许愿，我来实现'));
+  assert.ok(community.text.includes('自定义停止方式')&&!community.text.includes('急停')&&!community.text.includes('用鼠标停止操作'));
+  assert.equal(await evaluate('window.namespace'),process.env.WCU_SETTINGS_TEST_API==='legacy'?'windows-computer-use':'mcp-dsh-computer-use-win');
+  assert.equal(await evaluate('window.page.entry.id'),'computer-use');
+  assert.equal(await evaluate('window.page.entry.label()'),'Computer Use');
+  assert.equal(await evaluate("window.entries.some(x=>x.entry.name==='settings.plugin.item')"),true);
+  await evaluate("document.getElementById('wincu-page-indicatorEnabled').click()");
+  await until("!document.getElementById('wincu-page-indicatorEnabled').checked");
+  assert.equal(await evaluate("document.getElementById('wincu-page-cursorIndicatorEnabled').disabled"),false,'Pointer control must remain independent of the screen indicator');
+  await evaluate("document.getElementById('wincu-page-cursorIndicatorEnabled').click()");
+  await until("!document.getElementById('wincu-page-cursorIndicatorEnabled').checked");
+  assert.equal(await evaluate('window.snapshot.value.cursorIndicatorEnabled'),undefined,'Pointer change must stay a draft');
+  await evaluate("window.clickButton('放弃更改')");
+  await until("document.getElementById('wincu-page-cursorIndicatorEnabled').checked");
+  await evaluate("document.getElementById('wincu-page-toolPreset-custom').click()");
+  await until("!document.getElementById('wincu-page-tool-drag').disabled");
+  await evaluate("window.chooseTool('drag')");
+  await until("!Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='保存更改').disabled");
+  assert.equal(await evaluate("document.getElementById('wincu-page-tool-group-input').indeterminate"),true,'Partial group must be indeterminate');
+  assert.deepEqual(await evaluate('window.writes'),[],'Draft must not persist');
+  await evaluate("window.clickButton('放弃更改')");
+  await until("document.getElementById('wincu-page-tool-drag').checked");
+  await evaluate("document.getElementById('wincu-page-toolPreset-custom').click()");
+  await until("!document.getElementById('wincu-page-tool-drag').disabled");
+  await evaluate("window.chooseTool('drag');window.choosePosition('bottom');document.getElementById('wincu-page-cursorIndicatorEnabled').click()");
+  await evaluate("window.clickButton('保存更改')");
+  await until("document.body.textContent.includes('已保存')");
+  assert.equal(await evaluate('window.writes.length'),1,'Save all changed fields in a single host transaction');
+  assert.equal(await evaluate("window.snapshot.value.enabledTools.includes('drag')"),false);
+  assert.equal(await evaluate('window.snapshot.value.enabledTools.length'),23);
+  assert.equal(await evaluate('window.snapshot.value.indicatorPosition'),'bottom');
+  assert.equal(await evaluate('window.snapshot.value.cursorIndicatorEnabled'),false,'Pointer switch must persist in the same atomic save');
+  assert.equal(await evaluate("document.getElementById('wincu-page-remoteIndicatorVisible').checked"),true);
+  await evaluate("document.getElementById('wincu-page-remoteIndicatorVisible').click()");
+  await until("!document.getElementById('wincu-page-remoteIndicatorVisible').checked");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.remoteIndicatorVisible===false");
+  await until("!document.getElementById('wincu-page-remoteIndicatorVisible').disabled");
+  await evaluate("document.getElementById('wincu-page-remoteIndicatorVisible').click()");
+  await until("document.getElementById('wincu-page-remoteIndicatorVisible').checked");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.remoteIndicatorVisible===true");
+  await until("!document.getElementById('wincu-page-cursorIndicatorEnabled').disabled");
+  await evaluate("document.getElementById('wincu-page-cursorIndicatorEnabled').click();window.clickButton('保存更改')");
+  await until("window.snapshot.value.cursorIndicatorEnabled===true");
+  await evaluate("window.failSave=true;window.chooseTool('click')");
+  await evaluate("window.clickButton('保存更改')");
+  await until("document.body.textContent.includes('保存失败')");
+  assert.equal(await evaluate("window.snapshot.value.enabledTools.includes('click')"),true);
+  await evaluate("window.clickButton('放弃更改')");
+  await until("document.getElementById('wincu-page-tool-click').checked");
+  await evaluate("window.clickButton('全部关闭')");
+  await until("[...document.querySelectorAll('[data-wincu-tool]')].every(x=>!x.checked)");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.enabledTools.length===0");
+  await evaluate("document.getElementById('wincu-page-tool-group-input').click()");
+  await until("[...document.querySelectorAll('[data-wincu-tool]')].filter(x=>x.checked).length===7");
+  await evaluate("window.clickButton('全选')");
+  await until("[...document.querySelectorAll('[data-wincu-tool]')].every(x=>x.checked)");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.enabledTools.length===24");
+  await evaluate("window.chooseTool('drag')");
+  await until("!Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='保存更改').disabled");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.enabledTools.length===23");
+  await evaluate("document.getElementById('wincu-page-toolPreset-full').click()");
+  await until("document.querySelector('[data-wincu-tool-count]').textContent.includes('24 / 24')");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.toolPreset==='full'");
+  assert.equal(await evaluate('window.snapshot.value.enabledTools.length'),23,'Presets must keep the custom selection');
+  await evaluate("document.getElementById('wincu-page-toolPreset-lite').click()");
+  await until("document.querySelector('[data-wincu-tool-count]').textContent.includes('10 / 24')");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.toolPreset==='lite'");
+  await evaluate("document.getElementById('wincu-page-toolPreset-custom').click()");
+  await until("document.querySelector('[data-wincu-tool-count]').textContent.includes('23 / 24')");
+  assert.equal(await evaluate("document.getElementById('wincu-page-tool-drag').checked"),false);
+  await evaluate("window.clickButton('全选')");
+  await until("document.querySelector('[data-wincu-tool-count]').textContent.includes('24 / 24')");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.toolPreset==='custom'&&window.snapshot.value.enabledTools.length===24");
+  await evaluate("window.clickButton('预览接管提示')");
+  await until("window.snapshot.value.previewToken>0");
+  await evaluate("window.clickButton('恢复桌面控制')");
+  await until("window.snapshot.value.resumeToken>0");
+  await evaluate("window.key=init=>window.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,cancelable:true,...init}));window.clickButton('录制快捷键')");
+  await until("document.querySelector('[data-recording=true]')!==null");
+  assert.equal(await evaluate("window.key({key:'Control',code:'ControlLeft',ctrlKey:true})"),false,'Recording must consume modifier keys');
+  await evaluate("window.key({key:'F8',code:'F8',repeat:true})");
+  assert.equal(await evaluate("!!document.querySelector('[data-recording=true]')"),true,'Auto-repeat must not record');
+  await evaluate("window.key({key:'F8',code:'F8'})");
+  await until("document.querySelector('.wcu-shortcut-value').textContent==='F8'");
+  assert.equal(await evaluate('window.snapshot.value.stopShortcut'),'','Recorded shortcut remains a draft');
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.stopShortcut==='F8'");
+  assert.equal(await evaluate("window.key({key:'k',code:'KeyK'})"),true,'Recorder must release the keyboard after capture');
+  await evaluate("window.clickButton('重新录制')");
+  await until("!!document.querySelector('[data-recording=true]')");
+  await evaluate("window.key({key:'k',code:'KeyK',ctrlKey:true,altKey:true})");
+  await until("document.querySelector('.wcu-shortcut-value').textContent==='Ctrl + Alt + K'");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.stopShortcut==='Ctrl+Alt+K'");
+  await evaluate("window.clickButton('重新录制')");
+  await until("!!document.querySelector('[data-recording=true]')");
+  await evaluate("window.key({key:'Escape',code:'Escape'})");
+  await until("!document.querySelector('[data-recording=true]')");
+  assert.equal(await evaluate("document.querySelector('.wcu-shortcut-value').textContent"),'Ctrl + Alt + K');
+  await evaluate("window.clickButton('重新录制')");
+  await until("!!document.querySelector('[data-recording=true]')");
+  await evaluate("window.dispatchEvent(new Event('blur'))");
+  await until("!document.querySelector('[data-recording=true]')");
+  assert.equal(await evaluate("window.key({key:'z',code:'KeyZ'})"),true,'Blur must remove recording listeners');
+  await evaluate("window.clickButton('恢复默认（Esc）')");
+  await until("document.querySelector('.wcu-shortcut-value').textContent==='Esc（默认）'");
+  assert.equal(await evaluate('window.snapshot.value.stopShortcut'),'Ctrl+Alt+K','Clearing remains a draft');
+  await evaluate("window.clickButton('放弃更改')");
+  await until("document.querySelector('.wcu-shortcut-value').textContent==='Ctrl + Alt + K'");
+  await evaluate("window.clickButton('恢复默认（Esc）')");
+  await until("document.querySelector('.wcu-shortcut-value').textContent==='Esc（默认）'");
+  await evaluate("window.clickButton('保存更改')");
+  await until("window.snapshot.value.stopShortcut===''");
+  assert.equal(await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='恢复默认（Esc）').disabled"),true,'Default reset must remain visible and disabled when already using Esc');
+  assert.equal(await evaluate('window.snapshot.value.enabledTools.length'),24,'Restoring the stop shortcut must preserve selected tools');
+  // Theme tokens are the values read from the real Desktop host. Check both
+  // foreground/background contrast and native control theme propagation.
+  await evaluate("document.querySelectorAll('[data-wincu-settings] details').forEach(d=>d.open=true)");
+  const contrasts=await evaluate(`(()=>{
+    const root=document.documentElement;
+    function ratio(a,b){const lum=s=>{const c=s.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return .2126*c[0]+.7152*c[1]+.0722*c[2]};const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+    function check(){return [...document.querySelectorAll('.wcu-control')].map(e=>{const s=getComputedStyle(e);return ratio(s.color,s.backgroundColor)})}
+    const light=check();
+    for(const [k,v] of Object.entries({'--dsw-alias-bg-layer-1':'#232324','--dsw-alias-bg-layer-2':'#2c2c2e','--dsw-alias-bg-layer-3':'#353638','--dsw-alias-label-primary':'#f9fafb','--dsw-alias-label-secondary':'#b7b9bd','--dsw-alias-border-l2':'#ffffff1f'}))root.style.setProperty(k,v);
+    document.body.style.background='#2c2c2e';document.body.style.color='#f9fafb';return {light,dark:check()};
+  })()`);
+  assert.ok(contrasts.light.every(x=>x>=4.5)&&contrasts.dark.every(x=>x>=4.5),'Native control text must remain readable in both themes');
+  const before=paintCount;
+  await evaluate("window.renderPage('zh')");
+  win.webContents.invalidate();
   const paintDeadline=Date.now()+5000;
-  while(paintCount<=beforeDiscard){if(Date.now()>paintDeadline)throw Error('Settings card did not paint after discard');await new Promise(r=>setTimeout(r,20));}
-  assert.ok(paintedImage&&!paintedImage.isEmpty(),'Settings card screenshot must contain rendered pixels');
-  fs.writeFileSync(path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-card.png'),paintedImage.toPNG());
-  await evaluate(`window.renderCard('en')`);await until(`document.body.textContent.includes('Tool mode')`);
-  await evaluate(`window.snapshot={...window.snapshot,writable:false};for(const notify of window.listeners)notify()`);await until(`document.getElementById('wincu-tool-mode').disabled`);
-  const report={passed:true,slot:'settings.plugin.item',namespace:'windows-computer-use',writes:await evaluate('window.writes'),stagedSave:true,discard:true,errorPreservesValue:true,readOnly:true,languages:['zh','en'],fixture:'Actual shipped React card in hidden Chromium; settings scope is a deterministic fixture',screenshot:path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-card.png')};
-  fs.writeFileSync(path.join(process.env.WCU_SETTINGS_TEST_ROOT,'results.json'),JSON.stringify(report,null,2)+'\n');
+  while(paintCount<=before){if(Date.now()>paintDeadline)throw Error('Settings page did not repaint');await new Promise(r=>setTimeout(r,20))}
+  assert.ok(paintedImage&&!paintedImage.isEmpty());
+  fs.writeFileSync(path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-page.png'),paintedImage.toPNG());
+  await evaluate("window.renderPage('en')");
+  await until("document.body.textContent.includes('Resume desktop control')");
+  await evaluate("window.snapshot={...window.snapshot,writable:false};for(const fn of window.listeners)fn()");
+  await until("document.getElementById('wincu-page-tool-click').disabled");
+  const report={passed:true,api:process.env.WCU_SETTINGS_TEST_API||'modern',navigation:'settings.section/computer-use',compatibilityCard:true,atomicSave:true,draft:true,discard:true,errorPreservesValue:true,readOnly:true,preview:true,resume:true,allToolsDefault:true,outerPresets:['lite','full','custom'],customSelectionPreserved:true,toolsCollapsedByDefault:true,individualAndGroupSelection:true,emptySelection:true,restoreAllTools:true,shortcutRecording:true,shortcutCombination:true,shortcutCancelAndBlurCleanup:true,shortcutClearDraft:true,restoreDefaultEsc:true,externalLinkButtons:true,cursorIndicatorIndependent:true,cursorIndicatorSaved:true,remoteVisibilityDefault:true,remoteVisibilitySaveAndRestore:true,themes:['light','dark'],nativeControlContrast:contrasts,languages:['zh','en'],physicalInputSent:false,screenshot:path.join(process.env.WCU_SETTINGS_TEST_ROOT,'settings-page.png')};
+  fs.writeFileSync(path.join(process.env.WCU_SETTINGS_TEST_ROOT,'results.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify(report));win.destroy();app.quit();
 }).catch(error=>{console.error(error.stack);app.exit(1)});

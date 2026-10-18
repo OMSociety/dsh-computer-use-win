@@ -4,8 +4,9 @@ import {cp,mkdir,mkdtemp,writeFile,readFile,access} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {McpTestClient} from './mcp-test-client.mjs';
+import {TOOL_NAMES,LITE_TOOL_NAMES,normalizeEnabledTools,normalizeSettings,enabledToolsForSettings} from '../mcp/settings.mjs';
 const root=await mkdtemp(path.join(os.tmpdir(),'wcu-tool-context-'));
-await cp(new URL('../mcp',import.meta.url),path.join(root,'mcp'),{recursive:true});
+await cp(new URL('../mcp',import.meta.url),path.join(root,'mcp'),{recursive:true,filter:source=>!/^FILE_(LOG|INDEX|HISTORY)\./.test(path.basename(String(source)))&&!String(source).endsWith('.file-log.lock')});
 await mkdir(path.join(root,'scripts'));
 const marker=path.join(root,'started.txt').replaceAll("'","''");
 await writeFile(path.join(root,'scripts/windows-uia.ps1'),`param([switch]$Persistent)
@@ -20,7 +21,8 @@ const prefix='windows_computer_use_', reports=[];
 const data=r=>JSON.parse(r.content[0].text);
 const stripDescriptions=value=>Array.isArray(value)?value.map(stripDescriptions):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>key!=='description').map(([key,child])=>[key,stripDescriptions(child)])):value;
 for(const mode of ['lite','full']) {
-  const client=new McpTestClient(process.execPath,[path.join(root,'mcp/server.mjs')],{env:{...process.env,WCU_TOOL_MODE:mode}});
+  const env={...process.env,WCU_TOOL_MODE:mode};delete env.WCU_ENABLED_TOOLS;
+  const client=new McpTestClient(process.execPath,[path.join(root,'mcp/server.mjs')],{env});
   const manage=args=>client.call(prefix+'tools',args);
   try {
     assert.equal((await client.init()).capabilities.tools.listChanged,true);
@@ -55,5 +57,45 @@ for(const mode of ['lite','full']) {
     reports.push({mode,toolCount:initial.length,characters:JSON.stringify({tools:initial}).length,transcript:client.transcript});
   } finally {client.close()}
 }
+const ui=await readFile(new URL('../mcp/client.js',import.meta.url),'utf8');
+assert.deepEqual(ui.match(/const allToolNames='([^']+)'/)[1].split(' '),TOOL_NAMES,'UI and backend must use the same catalogue');
+assert.deepEqual(normalizeSettings({mode:'lite'}).enabledTools,TOOL_NAMES,'Legacy profiles default to all tools');
+assert.equal(normalizeSettings({}).toolPreset,'full');
+assert.equal(normalizeSettings({enabledTools:['wait']}).toolPreset,'custom','Migrate saved .11 selections');
+assert.deepEqual(enabledToolsForSettings({toolPreset:'lite',enabledTools:[]}),LITE_TOOL_NAMES);
+assert.deepEqual(enabledToolsForSettings({toolPreset:'full',enabledTools:[]}),TOOL_NAMES);
+assert.deepEqual(enabledToolsForSettings({toolPreset:'custom',enabledTools:[]}),[]);
+assert.throws(()=>normalizeSettings({toolPreset:'unknown'}));
+assert.deepEqual(normalizeEnabledTools(['wait','screenshot','wait']),TOOL_NAMES.filter(x=>['wait','screenshot'].includes(x)));
+for(const invalid of [null,'wait',['unknown'],['wait',1],Array(25).fill('wait')])assert.throws(()=>normalizeEnabledTools(invalid));
+for(const selection of [['screenshot','wait','tools'],['wait'],[],[...TOOL_NAMES]]){
+  const client=new McpTestClient(process.execPath,[path.join(root,'mcp/server.mjs')],{env:{...process.env,WCU_TOOL_MODE:'lite',WCU_ENABLED_TOOLS:JSON.stringify(selection)}});
+  try {
+    await client.init();
+    const initial=(await client.request('tools/list')).tools;
+    assert.deepEqual(initial.map(t=>t.name).sort(),selection.map(x=>prefix+x).sort());
+    if(!selection.includes('click')){
+      const denied=await client.call(prefix+'click',{x:1,y:1});
+      assert.equal(denied.isError,true);assert.match(denied.content[0].text,/TOOL_DISABLED_IN_SETTINGS/);
+    }
+    if(selection.includes('tools')){
+      const catalogue=data(await client.call(prefix+'tools',{}));
+      assert.equal(catalogue.mode,selection.length===24?'full':'custom');
+      assert.equal(catalogue.tools.find(x=>x.name==='drag').available,selection.includes('drag'));
+      if(!selection.includes('drag')){
+        const denied=await client.call(prefix+'tools',{operation:'enable',names:['wait','drag']});
+        assert.equal(denied.isError,true);assert.match(denied.content[0].text,/TOOL_DISABLED_IN_SETTINGS/);
+        assert.deepEqual((await client.request('tools/list')).tools,initial);
+      }
+      await client.call(prefix+'tools',{operation:'disable',names:['wait']});
+      await client.call(prefix+'tools',{operation:'reset'});
+      assert.deepEqual((await client.request('tools/list')).tools,initial,'Reset must preserve user restrictions');
+    }else{
+      const denied=await client.call(prefix+'tools',{});
+      assert.equal(denied.isError,true);assert.match(denied.content[0].text,/TOOL_DISABLED_IN_SETTINGS/);
+    }
+    reports.push({selection,toolCount:initial.length,disabledToolsBlocked:true,transcript:client.transcript});
+  }finally{client.close();}
+}
 await writeFile(path.join(root,'results.json'),JSON.stringify(reports,null,2)+'\n');
-console.log(JSON.stringify({passed:true,artifacts:root,modes:reports.map(({mode,toolCount,characters})=>({mode,toolCount,characters}))}));
+console.log(JSON.stringify({passed:true,artifacts:root,modes:reports.filter(x=>x.mode).map(({mode,toolCount,characters})=>({mode,toolCount,characters})),selections:reports.filter(x=>x.selection).map(({selection,toolCount})=>({selection,toolCount})),catalogueParity:true,invalidSelectionsRejected:true}));

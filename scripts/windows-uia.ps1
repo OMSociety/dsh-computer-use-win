@@ -99,6 +99,25 @@ using System;
 using System.Runtime.InteropServices;
 
 public static class WindowsComputerUseNative {
+  private static System.Threading.EventWaitHandle cancellation;
+  private static System.Diagnostics.Process stopListener;
+  public static void SetStopListener(int processId) {
+    if (processId <= 0) return;
+    if (stopListener == null || stopListener.Id != processId) {
+      if (stopListener != null) stopListener.Dispose();
+      stopListener = System.Diagnostics.Process.GetProcessById(processId);
+    }
+  }
+  public static void ThrowIfCancelled() {
+    string name = Environment.GetEnvironmentVariable("WCU_CANCEL_EVENT");
+    if (String.IsNullOrEmpty(name)) return;
+    if (stopListener != null && stopListener.HasExited) throw new OperationCanceledException("COMPUTER_USE_STOP_LISTENER_UNAVAILABLE");
+    if (cancellation == null) {
+      try { cancellation = System.Threading.EventWaitHandle.OpenExisting(name); }
+      catch (System.Threading.WaitHandleCannotBeOpenedException) { throw new OperationCanceledException("COMPUTER_USE_STOP_LISTENER_UNAVAILABLE"); }
+    }
+    if (cancellation.WaitOne(0)) throw new OperationCanceledException("COMPUTER_USE_STOPPED_BY_USER");
+  }
   [DllImport("user32.dll")]
   public static extern IntPtr GetForegroundWindow();
 
@@ -194,6 +213,7 @@ public static class WindowsComputerUseNative {
     int sent = 0;
     int size = Marshal.SizeOf(typeof(INPUT));
     while (sent < n) {
+      ThrowIfCancelled();
       int chunk = Math.Min(64, n - sent);
       var slice = new INPUT[chunk];
       Array.Copy(inputs, sent, slice, 0, chunk);
@@ -560,6 +580,7 @@ function Set-WindowForeground {
     $attached = [WindowsComputerUseNative]::AttachThreadInput($tgtThread, $fgThread, $true)
   }
   try {
+    if ($env:WCU_CANCEL_EVENT) { [WindowsComputerUseNative]::ThrowIfCancelled() }
     [void][WindowsComputerUseNative]::keybd_event([WindowsComputerUseNative]::VK_MENU, 0, 0, [UIntPtr]::Zero)
     [void][WindowsComputerUseNative]::keybd_event([WindowsComputerUseNative]::VK_MENU, 0, [WindowsComputerUseNative]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
     # SW_RESTORE is not a no-op on maximized/snapped windows — it un-maximizes
@@ -569,6 +590,7 @@ function Set-WindowForeground {
       [WindowsComputerUseNative]::ShowWindow($ptr, 9) | Out-Null
       Start-Sleep -Milliseconds 80
     }
+    if ($env:WCU_CANCEL_EVENT) { [WindowsComputerUseNative]::ThrowIfCancelled() }
     [WindowsComputerUseNative]::SetForegroundWindow($ptr) | Out-Null
     Start-Sleep -Milliseconds 120
   } finally {
@@ -640,6 +662,7 @@ function Focus-TextControl {
   param([System.Windows.Automation.AutomationElement]$Window)
   $el = Get-BestTextControl $Window
   if ($null -eq $el) { return $null }
+  [void](Test-Failsafe)
   $ok = Invoke-Safe { $el.SetFocus(); $true } $false
   if (-not $ok) { return $null }
   Start-Sleep -Milliseconds 80
@@ -755,9 +778,10 @@ function Assert-WindowIdentity {
 $script:FailsafeFirstSeen = 0
 
 function Test-Failsafe {
+  if ($env:WCU_CANCEL_EVENT) { [WindowsComputerUseNative]::ThrowIfCancelled() }
   # Returns $true when an input action is ALLOWED. Throws when the failsafe
   # is engaged (cursor parked in the corner beyond the hold time).
-  if ([string]$env:WCU_FAILSAFE -eq '0') { return $true }
+  if ([string]$env:WCU_FAILSAFE -eq '0' -or $script:WcuCornerFailsafe -eq $false) { return $true }
   $radius = 12
   if ("$env:WCU_FAILSAFE_RADIUS" -match '^\d+$') { $radius = [int]$env:WCU_FAILSAFE_RADIUS }
   $holdMs = 500
@@ -814,6 +838,7 @@ function Post-BackgroundClick {
       }
   }
   $lp = [WindowsComputerUseNative]::MakeLParam($pt.x, $pt.y)
+  [void](Test-Failsafe)
   $ok = [WindowsComputerUseNative]::PostMessageW($ptr, $down, [IntPtr]$mk, $lp)
   Start-Sleep -Milliseconds 30
   $ok = [WindowsComputerUseNative]::PostMessageW($ptr, $up, [IntPtr]0, $lp) -and $ok
@@ -821,6 +846,7 @@ function Post-BackgroundClick {
     # A real double-click: the double-click message carries the click, so a
     # second up completes it.
     Start-Sleep -Milliseconds 30
+    [void](Test-Failsafe)
     $ok = [WindowsComputerUseNative]::PostMessageW($ptr, $dbl, [IntPtr]$mk, $lp) -and $ok
     Start-Sleep -Milliseconds 30
     $ok = [WindowsComputerUseNative]::PostMessageW($ptr, $up, [IntPtr]0, $lp) -and $ok
@@ -837,6 +863,7 @@ function Post-BackgroundText {
   $ptr = [IntPtr]$Hwnd
   $allOk = $true
   foreach ($ch in $Text.ToCharArray()) {
+    [void](Test-Failsafe)
     $ok = [WindowsComputerUseNative]::PostMessageW($ptr, [WindowsComputerUseNative]::WM_CHAR, [IntPtr][int][char]$ch, [IntPtr]1)
     if (-not $ok) { $allOk = $false }
     Start-Sleep -Milliseconds 5
@@ -1511,6 +1538,7 @@ function Click-At {
   Move-ToPoint -X $X -Y $Y
   Start-Sleep -Milliseconds 40
   for ($i = 0; $i -lt $Count; $i++) {
+    [void](Test-Failsafe)
     if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32]$flags[0], 0) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected mouse input.' }
     try { Start-Sleep -Milliseconds 30 }
     finally {
@@ -1522,6 +1550,7 @@ function Click-At {
 
 function Move-ToPoint {
   param([int]$X, [int]$Y)
+  [void](Test-Failsafe)
   if (-not [WindowsComputerUseNative]::SetCursorPos($X, $Y)) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected cursor positioning. Restore the interactive desktop before retrying.' }
 }
 
@@ -1542,6 +1571,7 @@ function Type-Text {
   try {
     [System.Windows.Forms.Clipboard]::SetText($Text)
     Start-Sleep -Milliseconds 50
+    [void](Test-Failsafe)
     [System.Windows.Forms.SendKeys]::SendWait('^v')
     Start-Sleep -Milliseconds 80
   } finally {
@@ -1590,22 +1620,26 @@ function Invoke-ElementPattern {
   param([object]$Element)
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern) } $false) {
+    [void](Test-Failsafe)
     $pattern.Invoke()
     return "Invoke"
   }
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern, [ref]$pattern) } $false) {
+    [void](Test-Failsafe)
     $pattern.Toggle()
     return "Toggle"
   }
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern) } $false) {
+    [void](Test-Failsafe)
     $pattern.Select()
     return "SelectionItem"
   }
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$pattern) } $false) {
     $state = Invoke-Safe { $pattern.Current.ExpandCollapseState } $null
+    [void](Test-Failsafe)
     if ($state -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed) {
       $pattern.Expand()
     } else {
@@ -1620,6 +1654,7 @@ function Set-ElementValue {
   param([System.Windows.Automation.AutomationElement]$Element, [string]$Value)
   $pattern = $null
   if (Invoke-Safe { $Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern) } $false) {
+    [void](Test-Failsafe)
     $pattern.SetValue($Value)
     return "ValuePattern"
   }
@@ -1931,6 +1966,12 @@ function Get-TreeResult {
 function Invoke-Action {
   param([string]$Action, [object]$inputObject = $null)
 
+  $script:WcuCornerFailsafe = [bool](Get-Prop $inputObject '_wcuCornerFailsafe' $true)
+  if ($Action -in @('click','double_click','move','drag','scroll','type_text','keypress','focus','invoke','set_value','activate_window','close_window','move_window') -or (Get-Prop $inputObject 'activate' $false)) {
+    if ($env:WCU_CANCEL_EVENT) { [WindowsComputerUseNative]::SetStopListener([int](Get-Prop $inputObject '_wcuTakeoverPid' 0)) }
+    [void](Test-Failsafe)
+  }
+
   switch ($Action) {
     "health" {
       $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
@@ -2185,6 +2226,7 @@ function Invoke-Action {
       try {
         if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32]$flags[0], 0) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected mouse input.' }
         foreach ($pt in $path) {
+          [void](Test-Failsafe)
           Move-ToPoint -X ([int]$pt.x) -Y ([int]$pt.y)
           Start-Sleep -Milliseconds 25
         }
@@ -2210,6 +2252,7 @@ function Invoke-Action {
         Assert-TargetIsForeground $inputObject
         Move-ToPoint -X $point.x -Y $point.y
         Start-Sleep -Milliseconds 30
+        [void](Test-Failsafe)
         if ($deltaY -ne 0) {
           if ([WindowsComputerUseNative]::SendMouseEvent(0, 0, [uint32][WindowsComputerUseNative]::MOUSEEVENTF_WHEEL, (-1 * $deltaY)) -ne 1) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows rejected scroll input.' }
         }
@@ -2310,12 +2353,14 @@ function Invoke-Action {
       Activate-TargetIfRequested $inputObject
       Assert-TargetIsForeground $inputObject
       $chord = Convert-KeyChord -Keys $keys
+      [void](Test-Failsafe)
       [System.Windows.Forms.SendKeys]::SendWait($chord)
       return ([ordered]@{ ok = $true; action = "keypress"; keys = $keys; sendKeys = $chord; method = "sendkeys" })
     }
     "focus" {
       $elementId = [string](Get-Prop $inputObject "elementId" "")
       $el = Resolve-Element $elementId $inputObject
+      [void](Test-Failsafe)
       $el.SetFocus()
       return ([ordered]@{ ok = $true; action = "focus"; elementId = $elementId })
     }
@@ -2341,6 +2386,7 @@ function Invoke-Action {
       $el = Resolve-Element $elementId $inputObject
       $method = Set-ElementValue $el -Value $value
       if ($null -eq $method -and $fallback) {
+        [void](Test-Failsafe)
         $el.SetFocus()
         [System.Windows.Forms.SendKeys]::SendWait("^a")
         Type-Text -Text $value -RestoreClipboard $restore
@@ -2432,6 +2478,7 @@ function Invoke-Action {
       if (-not (Has-WindowTarget $inputObject)) { throw "Provide windowTitle, processId, or nativeWindowHandle." }
       $hwnd = Resolve-TargetHwnd $inputObject
       if (-not ($hwnd -and $hwnd -ne 0)) { throw "No window handle found for the target." }
+      [void](Test-Failsafe)
       $posted = [WindowsComputerUseNative]::PostMessageW([IntPtr]$hwnd, [WindowsComputerUseNative]::WM_CLOSE, [IntPtr]0, [IntPtr]0)
       return ([ordered]@{ ok = $true; action = "close_window"; posted = [bool]$posted })
     }
@@ -2450,6 +2497,7 @@ function Invoke-Action {
       if (-not [bool](Get-Prop $inputObject "activate" $false)) {
         $flags = [uint32]($flags -bor [WindowsComputerUseNative]::SWP_NOACTIVATE)
       }
+      [void](Test-Failsafe)
       $ok = [WindowsComputerUseNative]::SetWindowPos([IntPtr]$hwnd, [IntPtr]::Zero, [int]$x, [int]$y, 0, 0, $flags)
       $result = [ordered]@{ ok = $true; action = "move_window"; moved = [bool]$ok; x = [int]$x; y = [int]$y; note = if ($ok) { $null } else { "SetWindowPos refused (window may be maximized)." } }
       if ([bool](Get-Prop $inputObject "activate" $false)) {

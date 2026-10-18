@@ -44,7 +44,7 @@ async function evaluateBundle(profile, patchPath) {
   const rows = patch.flatMap(layer => layer.insert || []);
   const entries = rows.filter(row => row.id === 'mcp-dsh-computer-use-win');
   assert.equal(entries.length, 1, 'Expected one wincu bundle entry');
-  assert.equal(entries[0].name, 'dsh-computer-use-win/mcp/dsh-plugin.mjs');
+  assert.equal(entries[0].name, 'dsh-computer-use-win');
   const require = createRequire(new URL('package.json', baseUrl));
   const adapter = await import(pathToFileURL(require.resolve(entries[0].name)).href);
   return {
@@ -163,15 +163,16 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     assert.equal(result.connected, true, result.error || result.stderr);
     assert.equal(result.serverInfo.name, 'windows-computer-use');
     assert.equal(result.serverInfo.version, expectedVersion);
-    assert.equal(host.config.env.WCU_TOOL_MODE, 'lite');
-    assert.equal(result.toolCount, 10);
+    assert.equal(host.config.env.WCU_TOOL_MODE, 'full');
+    assert.equal(JSON.parse(host.config.env.WCU_ENABLED_TOOLS).length,24);
+    assert.equal(result.toolCount, 24);
     assert.equal(result.healthOk, true);
     // Catch the old 12-30 second synthetic-worker stall even when it succeeds.
     // This is a test budget with ample runner headroom, not a production timeout.
     assert.ok(result.stagesMs.health < 10000, `Synthetic health exceeded 10000ms: ${JSON.stringify(result)}`);
     assert.equal(result.waitOk, true);
     assert.equal(result.resourceCount, 6);
-    console.log(`PASS ${name} bundle -> MCP initialize / 10 lite tools / health / wait / 6 resources (synthetic PowerShell worker)`);
+    console.log(`PASS ${name} bundle -> MCP initialize / 24 selected tools / health / wait / 6 resources (synthetic PowerShell worker)`);
   }
   console.log(`BUNDLE_TIMING ${JSON.stringify({ phase: 'suite', durationMs: Math.round(performance.now() - suiteStarted) })}`);
 }

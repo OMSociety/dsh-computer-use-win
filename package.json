@@ -1,17 +1,21 @@
 {
   "name": "dsh-computer-use-win",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Windows computer use for DeepSeek Harness: an MCP stdio server + PowerShell UIA backend, bridged into DSH via @deepseek-ai/dsh-mcp-client. Read/act on real Windows desktop apps (UI Automation tree, screenshots, typed input, OCR, window management).",
   "type": "module",
   "bin": {
     "wcu-mcp": "mcp/server.mjs"
   },
-  "main": "mcp/server.mjs",
+  "main": "mcp/dsh-plugin.mjs",
   "files": [
     "mcp/server.mjs",
     "mcp/dsh-plugin.mjs",
     "mcp/client.js",
+    "mcp/settings.mjs",
+    "mcp/takeover.mjs",
     "scripts/windows-uia.ps1",
+    "scripts/windows-takeover.ps1",
+    "scripts/windows-takeover.cs",
     "docs/",
     "cordis.patch.yml",
     "README.md",
@@ -25,12 +29,15 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "inject": ["@deepseek-ai/dsh-client-runtime"],
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
       "platform": "web"
     }
   },
   "exports": {
-    ".": "./mcp/server.mjs",
+    ".": "./mcp/dsh-plugin.mjs",
     "./client": "./mcp/client.js",
     "./mcp/server.mjs": "./mcp/server.mjs",
     "./mcp/dsh-plugin.mjs": "./mcp/dsh-plugin.mjs",
@@ -71,7 +78,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@deepseek-ai/schemastery": "3.18.1",
+    "@deepseek-ai/schemastery": "3.18.5",
     "@modelcontextprotocol/client": "2.3.1",
     "electron": "44.0.0",
     "js-yaml": "4.3.2",
@@ -79,11 +86,15 @@
     "react-dom": "19.2.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/schemastery": ">=3.18.1",
-    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.2 || >=0.2.0-rc.2"
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.0-rc.2 || >=0.2.0-rc.2",
+    "@deepseek-ai/schemastery": ">=3.18.1"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/schemastery": { "optional": true },
-    "@deepseek-ai/dsh-mcp-client": { "optional": true }
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-mcp-client": {
+      "optional": true
+    }
   }
 }

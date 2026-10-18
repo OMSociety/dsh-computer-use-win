@@ -16,6 +16,7 @@ async function fixture(name,script,shortTimeout=false){
   // worker startup/replacement must not be measured against a 1.5s hang budget.
   if(shortTimeout){assert.ok(server.includes('timeoutMs = 30000'));server=server.replace('function runBackend(action, args = {}, timeoutMs = 30000, request) {','function runBackend(action, args = {}, timeoutMs = 30000, request) { timeoutMs = action === "wait" && args.milliseconds === 5000 ? 1500 : 15000;');}
   await writeFile(path.join(dir,'mcp/server.mjs'),server);
+  for(const file of ['settings.mjs','takeover.mjs'])await copyFile(path.join(source,'mcp',file),path.join(dir,'mcp',file));
   if(script)await writeFile(path.join(dir,'scripts/windows-uia.ps1'),script);else await copyFile(path.join(source,'scripts/windows-uia.ps1'),path.join(dir,'scripts/windows-uia.ps1'));
   const client=new McpTestClient(process.execPath,[path.join(dir,'mcp/server.mjs')],{env});clients.push(client);await client.init();return client;
 }
@@ -59,7 +60,11 @@ while($null -ne ($line=[Console]::In.ReadLine())) {
   const script=`param([switch]$Persistent)\nwhile($null -ne ($line=[Console]::In.ReadLine())){\n$r=$line|ConvertFrom-Json\nif($r.action -eq 'click'){Start-Sleep -Milliseconds 500;[IO.File]::WriteAllText('${marker.replaceAll("'","''")}','released')}\n[Console]::WriteLine((@{id=$r.id;ok=$true}|ConvertTo-Json -Compress))\n}\n`;
   const input=await fixture('synthetic-input',script);
   assert.equal((await call(input,'wait',{milliseconds:1})).isError,undefined);
+  // Deliver both requests together so indicator preparation cannot let the
+  // later read overtake the input merely because stdio split the writes.
+  input.child.stdin.cork();
   const inputId=input.next,start=performance.now(),action=call(input,'click',{x:1,y:2}),later=call(input,'wait',{milliseconds:1});
+  input.child.stdin.uncork();
   await delay(100);cancel(input,inputId);assert.equal((await later).isError,true);assert.equal((await action).isError,true);
   assert.equal(await readFile(marker,'utf8'),'released');assert.ok(performance.now()-start>=450);
   assert.equal((await call(input,'wait',{milliseconds:1})).isError,undefined);

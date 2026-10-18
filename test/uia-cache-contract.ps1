@@ -1,4 +1,4 @@
-# Exercise shipped observation code against an instrumented provider. No desktop input.
+﻿# Exercise shipped observation code against an instrumented provider. No desktop input.
 param([string]$BackendPath = "$PSScriptRoot/../scripts/windows-uia.ps1", [switch]$Legacy)
 $ErrorActionPreference = 'Stop'
 $source = [IO.File]::ReadAllText($BackendPath, [Text.Encoding]::UTF8)
@@ -91,6 +91,7 @@ function Has-WindowTarget {param($InputObject) return $true}
 function Resolve-TargetWindow {param($InputObject) $script:Resolutions++; return $script:Root}
 function Resolve-Element {param($ElementId,$InputObject) return $script:Root}
 function Set-WindowForeground {param($Element) return $script:Activated}
+function Test-Failsafe { return $true }
 function Assert-Equal {param($Actual,$Expected,[string]$Label) if ($Actual -ne $Expected) {throw "${Label}: expected=$Expected actual=$Actual"}}
 function Reset-Fixture {
   [Fixture.Automation.AutomationElement]::Reset()
