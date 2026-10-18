@@ -29,6 +29,7 @@ export async function makeProfile() {
   const peers = path.join(profile, 'node_modules', '@deepseek-ai');
   await mkdir(peers, { recursive: true });
   await symlink(path.dirname(fileURLToPath(import.meta.resolve('@deepseek-ai/schemastery/package.json'))), path.join(peers, 'schemastery'), 'junction');
+  await symlink(path.dirname(fileURLToPath(import.meta.resolve('@deepseek-ai/cosmokit/package.json'))), path.join(peers, 'cosmokit'), 'junction');
   return { root, profile, installed };
 }
 

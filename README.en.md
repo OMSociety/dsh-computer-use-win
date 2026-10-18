@@ -48,7 +48,7 @@ If you added a dedicated full configuration override for [#13](https://github.co
 
 Choose Lite / All / Custom in the outer preset selector; All is the default. Custom reveals the indented per-tool checklist. Switching presets preserves your custom selection. Save applies changes after the current action finishes; the preset and custom list survive restart. Lite loads 10 tools, All loads 24, and Custom loads the selected set, including an empty set.
 
-0.4.2 adds screen and pointer indicators, visible in remote capture by default, plus physical Esc stop. Configure the banner, position and hide delay in this page. Esc keeps desktop control paused until the user clicks Resume desktop control; Record an additional key or combination in settings and save to apply. Esc always remains available; ordinary mouse movement and injected keys do not stop it. See [settings and stopping guide](docs/computer-use-settings.md).
+0.4.3 keeps control indicators visible through the entire desktop operation series, including observations and reasoning, and adds mouse-icon action rows and conversation summaries. It fixes settings read/save/preview compatibility in mixed-version Desktop hosts and opens full settings from a compact plugin-list introduction. Screen and pointer indicators remain visible in remote capture by default, with physical Esc stop. Configure the banner, position and hide delay in this page. Esc keeps desktop control paused until the user clicks Resume desktop control; Record an additional key or combination in settings and save to apply. Esc always remains available; ordinary mouse movement and injected keys do not stop it. See [settings and stopping guide](docs/computer-use-settings.md).
 
 | Mode | Initially visible tools | Tool-definition characters |
 |---|---|---|
@@ -279,7 +279,7 @@ dsh plugin --profile web add github:Yu-tao-Li/dsh-computer-use-win
 
 外层提供“精简 / 全部 / 自定义”三种加载方案，默认选“全部”。选择“自定义”后展开缩进的逐项清单，可按项或按组勾选。切换方案保留自定义清单；保存后在当前动作结束时生效，重启保留方案和清单。精简方案固定加载 10 项，全部方案加载 24 项；自定义按用户清单加载，允许全部关闭。
 
-0.4.2加入接管光晕、提示条和物理 Esc 停止。提示显示、文字、位置和隐藏延时均可设置；Esc 后需在设置中点击“恢复桌面控制”。可点击“录制快捷键”采集额外的停止按键或组合键，保存后生效；Esc 始终保留。普通鼠标移动和程序注入的按键不触发停止。“远程与录屏可见”默认开启，支持 UU 虚拟屏幕上的接管提示，并跟随活动显示器变化刷新。详见[设置与停止说明](docs/computer-use-settings.md)。
+0.4.3 让接管提示从首次桌面调用持续到整轮结束，覆盖截图、读取和思考间隔，并在对话中显示鼠标图标、步骤和操作摘要。修复混合版本 Desktop 的设置读取、保存与预览；插件列表显示简介，点击进入完整设置。提示显示、文字、位置和隐藏延时均可设置；Esc 后需在设置中点击“恢复桌面控制”。可点击“录制快捷键”采集额外的停止按键或组合键，保存后生效；Esc 始终保留。普通鼠标移动和程序注入的按键不触发停止。“远程与录屏可见”默认开启，支持 UU 虚拟屏幕上的接管提示，并跟随活动显示器变化刷新。详见[设置与停止说明](docs/computer-use-settings.md)。
 
 | 模式 | 模型初始可见的工具 | 工具定义字符数 |
 |---|---|---|

@@ -19,9 +19,9 @@ app.whenReady().then(async()=>{
   await evaluate(
     "window.writes=[];window.listeners=new Set();window.snapshot={value:{mode:'lite',indicatorEnabled:true,indicatorText:'DSH 正在控制电脑',indicatorPosition:'top',indicatorIdleMs:800,stopShortcut:''},revision:1,writable:true};window.failSave=false;window.entries=[];"+
     "window.scope={getSnapshot:()=>window.snapshot,subscribe:fn=>{window.listeners.add(fn);return ()=>window.listeners.delete(fn)},load:async()=>{},set:async(field,value)=>{window.writes.push({field,value});window.snapshot={...window.snapshot,value:{...window.snapshot.value,[field]:value}};for(const fn of window.listeners)fn()}};"+
-    "window.ctx={effect:fn=>fn(),locale:{register:(_ns,dict)=>{window.dictionary=dict;return ()=>{}},bind:()=>key=>window.dictionary.zh[key]},settingsScope:{bind:options=>{window.namespace=options.namespace;return window.scope}},slots:{inject:(_name,fn)=>fn(),register:(entry,card)=>{window.entries.push({entry,card});return ()=>{}}},"+
+    "window.definitions=[];window.ctx={effect:fn=>fn(),uiConversation:{events:{register:def=>window.definitions.push(def)}},locale:{register:(_ns,dict)=>{window.dictionary=dict;return ()=>{}},bind:()=>key=>window.dictionary.zh[key]},settingsScope:{bind:options=>{window.namespace=options.namespace;return window.scope}},slots:{inject:(_name,fn)=>{const result=fn();if(result&&typeof result.next==='function')for(const item of result){};return result},register:(entry,card)=>{window.entries.push({entry,card});return ()=>{}}},"+
     "connection:{api:{settings:{mutate:async request=>{if(window.failSave){window.failSave=false;return {result:{ok:false,message:'fixture rejected save'}}}if(request.expectedRevision!==window.snapshot.revision)throw Error('revision conflict');window.writes.push(request.ops);const value={...window.snapshot.value};for(const op of request.ops)value[op.path[0]]=JSON.parse(JSON.stringify(op.value));window.snapshot={...window.snapshot,value,revision:window.snapshot.revision+1};for(const fn of window.listeners)fn();return {result:{ok:true}}}}}}};"+
-    "window.apiMode="+JSON.stringify(process.env.WCU_SETTINGS_TEST_API||'modern')+";window.ctx.configForms={get:ns=>{window.namespace=ns;return window.scope}};if(window.apiMode==='modern')window.scope.mutate=async(ops,revision)=>{const r=await window.ctx.connection.api.settings.mutate({ops,expectedRevision:revision});return r.result.ok};window.ctx.inject=(names,fn)=>{if((window.apiMode==='modern'&&names.includes('configForms'))||(window.apiMode==='legacy'&&names.includes('settingsScope')))fn(window.ctx)};window.clientModule.apply(window.ctx);window.page=window.entries.find(x=>x.entry.name==='settings.section');"+
+    "window.apiMode="+JSON.stringify(process.env.WCU_SETTINGS_TEST_API||'modern')+";window.ctx.configForms={get:ns=>{window.namespace=ns;return window.scope}};if(window.apiMode==='modern')window.scope.mutate=async(ops,revision)=>{const r=await window.ctx.connection.api.settings.mutate({ops,expectedRevision:revision});return r.result.ok};window.ctx.inject=(names,fn)=>{if(names.includes('uiConversation')||(window.apiMode==='modern'&&names.includes('configForms'))||(window.apiMode==='legacy'&&names.includes('settingsScope')))fn(window.ctx)};window.clientModule.apply(window.ctx);window.page=window.entries.find(x=>x.entry.name==='settings.section');"+
     "window.root=ReactDOM.createRoot(document.getElementById('app'));"+
     "window.renderPage=lang=>window.root.render(React.createElement(window.page.card,{...window.page.entry.inject(),t:key=>window.dictionary[lang][key]}));"+
     "window.renderPage('zh');"+
@@ -177,6 +177,51 @@ app.whenReady().then(async()=>{
     document.body.style.background='#2c2c2e';document.body.style.color='#f9fafb';return {light,dark:check()};
   })()`);
   assert.ok(contrasts.light.every(x=>x>=4.5)&&contrasts.dark.every(x=>x>=4.5),'Native control text must remain readable in both themes');
+  // A missing host form must never masquerade as editable default values.
+  await evaluate("window.savedSnapshot=window.snapshot;window.snapshot={status:'unavailable',writable:true};for(const fn of window.listeners)fn()");
+  await until("!!document.querySelector('[data-wincu-unavailable]')");
+  assert.equal(await evaluate("!!document.querySelector('[data-wincu-settings]')"),false);
+  await evaluate("window.snapshot={...window.savedSnapshot,status:'ready'};for(const fn of window.listeners)fn()");
+  await until("!!document.querySelector('[data-wincu-settings]')");
+  await evaluate("window.root.render(React.createElement(window.page.card,{...window.page.entry.inject(),t:key=>window.dictionary.zh[key],view:'summary'}))");
+  await until("!!document.querySelector('[data-wincu-summary]')");
+  assert.equal(await evaluate("document.body.textContent.includes('点击进行具体设置')&&document.querySelectorAll('input').length===0"),true,'Plugin list summary must contain no settings form');
+  // Reconstruct a complete series from durable events, then reconstruct again
+  // to model reopening the conversation without process-local UI history.
+  const activity=await evaluate(`(()=>{
+   const def=window.definitions.find(d=>d.kind==='wincu-series');
+   const call=(seq,id,name,args)=>({seq,type:'tool/call',data:{turn:1,callId:id,name:'mcp__wincu__windows_computer_use_'+name,arguments:args}});
+   const result=(seq,id,value)=>({seq,type:'tool/result',data:{turn:1,message:{callId:id,content:[{type:'text',text:JSON.stringify(value)}]}}});
+   window.events=[{seq:0,type:'turn/start',data:{turn:1}},call(1,'a','type_text',{text:'测试',windowTitle:'Edge 搜索'}),result(2,'a',{verification:'sent'}),call(3,'b','keypress',{keys:['enter']}),result(4,'b',{verification:'sent'}),call(5,'c','screenshot',{}),result(6,'c',{window:{title:'测试 - Bing'},verification:'observed'}),{seq:7,type:'turn/end',data:{turn:1,reason:{kind:'completed'}}}];
+   const replay=()=>{let state;for(const event of window.events){const match={...def.match(event),event};state=state===undefined?def.start({},match):def.update({state},match);}return def.buildViewNode({key:'wcu:1',id:'1',state});};
+   const node=replay(),reopened=replay();window.seriesNode=node;
+   const row=window.entries.find(x=>x.entry.name==='conversation.chat.node'&&x.entry.key==='wincu-series');
+   window.root.render(React.createElement(row.card,{node,t:key=>window.dictionary.zh[key]}));
+   return {same:JSON.stringify(node)===JSON.stringify(reopened),count:node.data.calls.length,ended:node.data.ended};
+  })()`);
+  assert.deepEqual(activity,{same:true,count:3,ended:true});
+  await until("!!document.querySelector('[data-wincu-series]')");
+  assert.equal(await evaluate("document.body.textContent.includes('在浏览器中搜索了「测试」')&&!!document.querySelector('[data-wincu-series] svg')"),true);
+  await evaluate("document.querySelector('[data-wincu-series]').open=true");
+  assert.equal(await evaluate("document.querySelectorAll('[data-wincu-series] li').length"),3);
+  const statusChecks=await evaluate(`(()=>{
+   const def=window.definitions.find(d=>d.kind==='wincu-series'),row=window.entries.find(x=>x.entry.name==='conversation.chat.node'&&x.entry.key==='wincu-series');
+   const replay=events=>{let state;for(const event of events){const match={...def.match(event),event};state=state===undefined?def.start({},match):def.update({state},match);}return def.buildViewNode({key:'negative',id:'1',state});};
+   const failed=structuredClone(window.events);failed[2].data.message.isError=true;
+   const failedNode=replay(failed),stopped=structuredClone(failed);stopped[2].data.message.content=[{type:'text',text:'COMPUTER_USE_STOPPED_BY_USER'}];
+   const stoppedNode=replay(stopped),unfinished=replay(window.events.filter(e=>e.seq!==6));
+   window.negativeNode=failedNode;window.negativeRow=row;
+   window.root.render(React.createElement(row.card,{node:failedNode,t:key=>window.dictionary.zh[key]}));
+   return {failed:failedNode.data.calls[0].status,stopped:stoppedNode.data.calls[0].status,unfinished:unfinished.data.calls[2].status};
+  })()`);
+  assert.deepEqual(statusChecks,{failed:'failed',stopped:'stopped',unfinished:'working'});
+  await until("document.body.textContent.includes('未完成')&&!document.body.textContent.includes('在浏览器中搜索了')");
+  const factory=await evaluate(`(()=>{
+   const node=structuredClone(window.seriesNode);node.data.calls[2].message.content.push({type:'image',attachment:{id:'test-image',mediaType:'image/png'}});
+   window.factoryCalls=[];window.root.render(React.createElement(window.negativeRow.card,{node,t:key=>window.dictionary.zh[key],loadImage:async()=>'',renderFactorySlot:(name,props)=>{window.factoryCalls.push({name,count:props.images.length,loader:typeof props.loadImage});return React.createElement('span',{'data-image-factory':true},'image');}}));return true;
+  })()`);
+  await until("!!document.querySelector('[data-image-factory]')");
+  assert.deepEqual(await evaluate('window.factoryCalls.at(-1)'),{name:'conversation.images.content',count:1,loader:'function'});
   const before=paintCount;
   await evaluate("window.renderPage('zh')");
   win.webContents.invalidate();

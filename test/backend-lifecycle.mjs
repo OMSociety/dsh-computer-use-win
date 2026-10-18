@@ -8,7 +8,7 @@ import {McpTestClient} from './mcp-test-client.mjs';
 const source=fileURLToPath(new URL('../',import.meta.url));
 const root=await mkdtemp(path.join(os.tmpdir(),'dsh-wincu-public-test-'));
 const clients=[];
-const env={...process.env,WCU_INDICATOR:'0',WINDOWS_CU_POWERSHELL:process.env.WINDOWS_CU_POWERSHELL||'pwsh'};
+const env={...process.env,NODE_ENV:'test',WCU_TEST_NO_TAKEOVER:'1',WCU_INDICATOR:'0',WINDOWS_CU_POWERSHELL:process.env.WINDOWS_CU_POWERSHELL||'powershell.exe'};
 async function fixture(name,script,shortTimeout=false){
   const dir=path.join(root,name);await mkdir(path.join(dir,'mcp'),{recursive:true});await mkdir(path.join(dir,'scripts'));
   let server=await readFile(path.join(source,'mcp/server.mjs'),'utf8');

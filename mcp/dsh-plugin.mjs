@@ -6,9 +6,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { DEFAULT_SETTINGS, normalizeSettings, enabledToolsForSettings, STOP_SHORTCUT_PATTERN, TOOL_NAMES } from './settings.mjs';
 import { atomicJson } from './takeover.mjs';
+import { installActivity } from './activity.mjs';
 
 export const name = 'windows-computer-use';
 export const inject = ['tools'];
+export function createLiveReference(value){
+  let current=Array.isArray(value)?Object.freeze([...value]):value;
+  return Object.freeze({get:()=>current,[Symbol.for('cosmokit.volatile.write')]:next=>{current=next;}});
+}
 const fields = {
   mode: z.union([z.const('lite'),z.const('full')]).default('full').description('旧版工具模式 / Legacy tool mode'),
   toolPreset: z.union(['auto','full','lite','custom'].map(value=>z.const(value))).default('auto').description('工具加载方案 / Tool preset'),
@@ -24,17 +29,32 @@ const fields = {
   previewToken: z.number().min(0).default(0)
 };
 export const SettingsConfig = z.object(fields);
-export const Config = z.object({ ...Object.fromEntries(Object.entries(fields).map(([key,field])=>[key,typeof field.volatile === 'function' ? field.volatile() : field])),
+// Some Desktop loaders resolve Schemastery without the volatile() convenience
+// method. Never silently omit the metadata the host uses to expose the form.
+export const Config = z.object({ ...Object.fromEntries(Object.entries(fields).map(([key,field])=>[key,typeof field.volatile === 'function' ? field.volatile() : field.extra('volatile',true)])),
   toolCallTimeoutMs: z.number().min(1).default(60000).description('工具调用超时（毫秒） / Tool timeout (ms)'),
   failOnStartupError: z.boolean().default(false)
 });
+// A mixed-version Desktop can understand volatile schema metadata while its
+// selected validator still returns plain values. Give the Loader the official
+// shared reference protocol for both initial and candidate validation. The
+// fields are validated JSON scalars or an immutable array of tool names.
+const validation=Config['~standard'];
+Object.defineProperty(Config,'~standard',{value:{...validation,validate(input){
+  const result=validation.validate(input);
+  if(!result.issues)for(const key of Object.keys(fields)){
+    if(typeof result.value[key]?.get!=='function')result.value[key]=createLiveReference(result.value[key]);
+  }
+  return result;
+}}});
 export function bridgeConfig(config = {}, runtime = {}) {
   const settings = normalizeSettings(config);
   return {
     serverName: 'wincu', transport: 'stdio', command: process.execPath,
     args: [fileURLToPath(new URL('./server.mjs', import.meta.url))],
     env: { ELECTRON_RUN_AS_NODE: '1', WCU_TOOL_MODE: settings.mode, WCU_ENABLED_TOOLS: JSON.stringify(enabledToolsForSettings(settings)), WCU_SETTINGS_JSON: JSON.stringify(settings),
-      ...(runtime.configFile ? { WCU_CONFIG_FILE: runtime.configFile, WCU_STATE_FILE: runtime.stateFile } : {}) },
+      ...(runtime.configFile ? { WCU_CONFIG_FILE: runtime.configFile, WCU_STATE_FILE: runtime.stateFile } : {}),
+      ...(runtime.activityFile ? {WCU_ACTIVITY_FILE:runtime.activityFile}: {}) },
     toolCallTimeoutMs: config.toolCallTimeoutMs ?? 60000,
     failOnStartupError: config.failOnStartupError ?? false
   };
@@ -42,7 +62,8 @@ export function bridgeConfig(config = {}, runtime = {}) {
 export async function apply(ctx, config) {
   const bridge = await import('@deepseek-ai/dsh-mcp-client');
   const root = mkdtempSync(path.join(os.tmpdir(), 'dsh-wcu-control-'));
-  const runtime = { configFile: path.join(root,'settings.json'), stateFile: path.join(root,'state.json') };
+  const runtime = { configFile: path.join(root,'settings.json'), stateFile: path.join(root,'state.json'), activityFile:path.join(root,'activity.json') };
+  installActivity(ctx,runtime.activityFile);
   let desired = normalizeSettings(config), runningSelection, connection, stopped = false;
   let updates = Promise.resolve();
   atomicJson(runtime.configFile, desired);
@@ -76,9 +97,11 @@ export async function apply(ctx, config) {
   };
   // Volatile references belong to this adapter. Keep their polling lifetime
   // with the owner rather than a settings-service injection child.
-  if (Object.values(config).some(value => typeof value?.get === 'function')) ctx.effect(() => {
+  ctx.effect(() => {
     const timer = setInterval(()=>{
-      try {const next=normalizeSettings(config);if(JSON.stringify(next)!==JSON.stringify(desired))applySettings(next).catch(error=>ctx.logger.error(error));}
+      // Older validators keep plain values rather than volatile references.
+      // The Loader still commits the validated raw options for those hosts.
+      try {const next=normalizeSettings({...config,...ctx.fiber.entry?.options?.config});if(JSON.stringify(next)!==JSON.stringify(desired))applySettings(next).catch(error=>ctx.logger.error(error));}
       catch(error){ctx.logger.error(error);}
     },250);
     timer.unref(); return ()=>clearInterval(timer);

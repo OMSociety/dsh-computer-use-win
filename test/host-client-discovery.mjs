@@ -30,10 +30,14 @@ let client;
 vm.runInNewContext(await readFile(new URL('../mcp/client.js',import.meta.url),'utf8'),{
   window:{__ModuleLoader__:{load:entry=>client=entry.factory(name=>require(name))}}
 });
+const {SlotCore}=await import(pathToFileURL(require.resolve('@deepseek-ai/dsh-client-ui-slots')));
+const core=new SlotCore();
+core.register({name:'root',children:Object.fromEntries(['settings.section','plugins.item','settings.plugin.item','tool.call.toolview','conversation.chat.node'].map(name=>[name,{kind:name.includes('toolview')||name==='conversation.chat.node'?'keyed':'list',scope:'root'}]))},()=>null);
 const ctx=new Context(),slots=[];
 ctx.provide('locale',{register:()=>()=>{},bind:()=>key=>key});
-ctx.provide('slots',{inject:(_name,register)=>register(),register:entry=>{slots.push(entry.name);return ()=>{}}});
+ctx.provide('slots',{inject:(_name,register)=>{const result=register();if(result&&typeof result.next==='function')for(const _item of result){};return result;},register:(entry,component)=>{slots.push(entry.name);return core.register(entry,component);}});
 ctx.provide('configForms',{get:()=>({getSnapshot:()=>({value:{},writable:true}),subscribe:()=>()=>{},mutate:async()=>true})});
+ctx.provide('uiConversation',{events:{register:()=>()=>{}}});
 class Connection extends Service{constructor(ctx){super(ctx,'connection');}}
 await ctx.plugin(Connection);
 try{
@@ -42,5 +46,7 @@ try{
  assert.ok(children.some(f=>'configForms' in f.inject));
  for(const child of children)assert.notEqual(child.state,3,child._error?.message);
  assert.ok(slots.includes('settings.section'),'Modern settings must mount with real service access checks');
+ assert.ok(slots.includes('conversation.chat.node'),'Activity summary must mount with real service access checks');
+ assert.equal(slots.filter(name=>name==='tool.call.toolview').length,48,'All 24 tools must register both public name prefixes without duplicate child-slot declarations');
 }finally{await ctx.fiber.dispose();}
 console.log(JSON.stringify({passed:true,hostDiscovery:true,loaderRow:row.name,dependencies:meta.meta.inject,serviceInjectionChecked:true}));

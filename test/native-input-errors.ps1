@@ -17,14 +17,26 @@ public static class WindowsComputerUseNative {
   public struct POINT { public int x, y; }
   public static bool MoveOk = true, CursorOk = true;
   public static uint PressResult = 1, ReleaseResult = 1;
-  public static int Calls;
+  public static int Calls, MoveCalls;
   public const int MOUSEEVENTF_LEFTDOWN = 2, MOUSEEVENTF_LEFTUP = 4;
   public const int MOUSEEVENTF_RIGHTDOWN = 8, MOUSEEVENTF_RIGHTUP = 16;
   public const int MOUSEEVENTF_MIDDLEDOWN = 32, MOUSEEVENTF_MIDDLEUP = 64;
-  public static bool SetCursorPos(int x, int y) { return MoveOk; }
+  public static bool SetCursorPos(int x, int y) { MoveCalls++; return MoveOk; }
   public static bool GetCursorPos(ref POINT point) { return CursorOk; }
   public static uint SendMouseEvent(int x, int y, uint flags, int data) {
     Calls++; return flags == MOUSEEVENTF_LEFTDOWN ? PressResult : ReleaseResult;
+  }
+}
+namespace System.Windows.Forms {
+  public static class Clipboard {
+    public static string LastText;
+    public static object GetDataObject() { return null; }
+    public static void SetText(string value) { LastText = value; }
+    public static void Clear() {}
+  }
+  public static class SendKeys {
+    public static string LastKeys;
+    public static void SendWait(string keys) { LastKeys = keys; }
   }
 }
 '@
@@ -40,7 +52,10 @@ function Assert-Error { param([scriptblock]$Body, [string]$Pattern)
 Assert-Error { Move-ToPoint 1 2 } 'COMPUTER_USE_INPUT_UNAVAILABLE'
 Assert-Error { Click-At 1 2 } 'COMPUTER_USE_INPUT_UNAVAILABLE'
 if ([WindowsComputerUseNative]::Calls -ne 0) { throw 'Mouse input was sent after positioning failed.' }
-Assert-Error { Type-Text 'test' } 'COMPUTER_USE_INPUT_UNAVAILABLE'
+[WindowsComputerUseNative]::MoveCalls = 0
+Type-Text 'test'
+if ([WindowsComputerUseNative]::MoveCalls -ne 0) { throw 'Typing must not reposition the shared pointer.' }
+if ([System.Windows.Forms.Clipboard]::LastText -ne 'test' -or [System.Windows.Forms.SendKeys]::LastKeys -ne '^v') { throw 'Expected simulated paste without cursor movement.' }
 [WindowsComputerUseNative]::MoveOk = $true
 [WindowsComputerUseNative]::CursorOk = $false
 Assert-Error { Type-Text 'test' } 'COMPUTER_USE_INPUT_UNAVAILABLE'

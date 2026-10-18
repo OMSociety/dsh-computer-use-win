@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.3 — 2026-10-19
+
+- 修复部分 Desktop 安装的设置读取、保存与预览：保留实时字段元数据并兼容共享引用协议，确认宿主保存结果；缺失表单不再显示成可编辑的默认值。 / Fix settings reads, saves and preview on mixed-version Desktop installations; keep live metadata and references, and disable unavailable forms.
+- 接管提示覆盖整轮桌面操作，包括观察和思考间隔；完成、取消或异常退出后释放，租约过期避免常驻。不同对话不能交错接管桌面。 / Keep indicators through the complete operation series, release on turn completion/cancellation or stale leases, and prevent overlapping conversations from controlling the desktop.
+- 对话中增加鼠标图标操作行、可展开截图及整轮操作摘要，从已有会话事件恢复；区分发送输入和确认结果。 / Add mouse-icon action rows, expandable screenshots and durable series summaries, distinguishing sent input from verified effects.
+- 插件列表使用简介和设置引导，完整表单及 Star／Issue 链接保留在详情页。 / Use a compact plugin-list introduction and keep the complete settings and community links on the detail page.
+- 文字粘贴不再将鼠标移回较早的位置；保留 UIA 优先、物理 Esc／自定义快捷键停止，以及远程和虚拟显示器提示。 / Remove pointer repositioning during paste while retaining UIA-first actions, explicit stop shortcuts and remote/virtual-display indicators.
+
 ## 0.4.2 — 2026-10-18
 
 - 修复 DSH Desktop 设置入口：通过包入口发现客户端，并在“设置 → Computer Use”及插件页面注册界面，支持现代 Config/volatile 字段与旧设置接口。提供中英界面、深浅主题、草稿、原子保存、失败反馈和重启持久化。 / Fix Desktop client discovery and mount Settings → Computer Use, supporting modern Config/volatile fields and legacy settings, bilingual themes and persisted saves.

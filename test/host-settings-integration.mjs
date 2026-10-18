@@ -19,7 +19,7 @@ const root=await mkdtemp(path.join(os.tmpdir(),'wcu-host-settings-'));
 const packageRoot=path.join(root,'plugin'), peerRoot=path.join(packageRoot,'node_modules/@deepseek-ai');
 await mkdir(peerRoot,{recursive:true});
 for(const entry of ['mcp','scripts','package.json','docs'])await cp(new URL('../'+entry,import.meta.url),path.join(packageRoot,entry),{recursive:true});
-for(const name of ['schemastery','dsh-mcp-client'])await symlink(path.dirname(require.resolve('@deepseek-ai/'+name+'/package.json')),path.join(peerRoot,name),'junction');
+for(const name of ['schemastery','cosmokit','dsh-mcp-client'])await symlink(path.dirname(require.resolve('@deepseek-ai/'+name+'/package.json')),path.join(peerRoot,name),'junction');
 const adapter=await import(pathToFileURL(path.join(packageRoot,'mcp/dsh-plugin.mjs')).href);
 const previousTemp=process.env.TEMP, previousTmp=process.env.TMP;process.env.TEMP=root;process.env.TMP=root;
 let raw={mode:'lite',indicatorEnabled:false},entry;

@@ -6,6 +6,8 @@
 
 若曾为 #29 手动添加独立的 `windows-computer-use` 或 `wincu` 覆盖条目，请先备份 profile 配置，再移除该临时重复条目，使用插件 bundle 提供的入口。避免同时启动两个桌面操作服务。
 
+插件列表显示功能简介和“点击进行具体设置”，点击打开完整设置页；Star 和 Issue 链接位于完整设置页顶部。无法读取宿主配置时会暂停编辑并明确提示，不再将内置默认值当作已经读取的设置。0.4.3 补齐混合版本验证器的实时字段与共享引用协议，使用宿主确认的值回读保存结果。
+
 ### 工具加载
 
 外层选择 **精简 / 全部 / 自定义**，默认全部 24 项（23 项桌面工具加管理入口）。精简固定加载 10 项；自定义才展开内部缩进清单，支持逐项、分组、全选和全部关闭。切换方案会保留自定义勾选，保存后在当前动作结束时生效，重启保留选择。agent 不能重新启用用户关闭的工具。
@@ -16,7 +18,13 @@
 
 “远程与录屏可见”默认开启，让 UU、屏幕共享及录屏可以捕获提示。关闭后请求 Windows 在支持的捕获路径中排除提示。组件通过原生活动显示器枚举、显示／会话事件及接管期间 500 毫秒复核刷新，处理虚拟屏幕新增、移除、重连和布局／DPI 变化。
 
-提示只在本插件执行桌面输入或预览时出现，空闲不常驻。普通文件读写或 shell 命令不触发桌面接管提示。
+DSH 从首次 Computer Use 工具实际执行开始，整轮操作期间持续显示提示，包括截图、读取和中间思考；轮次完成、取消或异常退出后才按延时收起。普通文件读写或 shell 命令不单独触发提示。其他对话正在接管桌面时返回忙碌状态，避免两个任务交错操作鼠标。宿主活动租约过期后会释放提示。独立 stdio 客户端没有 DSH 的轮次边界，保持单次调用显示。
+
+### 对话中的操作记录
+
+工具调用使用鼠标图标和简洁操作描述，点击展开相关截图与检查入口。轮次结束后汇总步骤；重开对话时从已有会话事件恢复。输入已发送与效果已验证分开表达，未完成和已停止会明确显示。浏览器搜索摘要以实际输入、提交和后续观察为依据。
+
+支持的控件操作优先使用 UIA；文字粘贴不再额外移动鼠标。坐标点击仍使用当前 Windows 桌面的真实鼠标，不在事后恢复可能过时的位置。
 
 ### 停止与恢复
 
@@ -24,16 +32,22 @@
 
 停止后保持暂停，准备好再点击“恢复桌面控制”。普通鼠标移动与其他按键不会停止；程序发送的按键不视为物理停止输入。关闭提示仍保留停止监听。
 
-取消会在可分段输入与 UIA 解析后的执行边界检查，并在收尾时释放按住的输入。已送达应用的操作无法撤回，阻塞的应用 Provider 调用需要先返回。当前官方桥未提供对话轮次 ID，因此恢复是显式用户操作；完整重启插件会建立新的控制实例。
+取消会在可分段输入与 UIA 解析后的执行边界检查，并在收尾时释放按住的输入。已送达应用的操作无法撤回，阻塞的应用 Provider 调用需要先返回。恢复始终需要用户明确操作；完整重启插件会建立新的控制实例。
 
 ## English
 
 Upgrade and fully restart DSH Desktop, then open **Settings → Computer Use**. A plugin-page entry and the legacy configurable card are also available. Modern DSH uses the `mcp-dsh-computer-use-win` Config namespace; the older API uses `windows-computer-use`. Back up and remove any temporary duplicate adapter/MCP override added for #29 before using the bundled entry.
 
+The plugin list shows a short introduction that opens the complete settings page. Star and Issue links stay on that page. An unavailable host form shows an explicit state and cannot be edited. Version 0.4.3 supplies live-field metadata and the shared reference protocol for mixed-version validators, and confirms saved values against the host response.
+
 Choose **Lite / All / Custom** in the outer selector. All is the default (24 entries); Lite loads 10. Custom reveals the indented checklist with individual/group selection, select-all and disable-all. Preset changes preserve your custom selection. Save applies after the current action finishes and survives restart. Management cannot re-enable user-disabled tools.
 
-Screen edges/banner and the pointer halo/DSH badge have independent controls. Customize text, top/bottom placement and the 200–3000ms hide delay, save and preview. The layers let clicks pass through, keep focus and leave Windows cursor themes intact. **Visible in remote sessions and recordings** is on by default, including virtual displays. Turning it off requests capture exclusion on supported Windows capture paths. Active monitor enumeration, display/session events and a 500ms topology check refresh the layers after display, layout or DPI changes. Indicators appear only for this plugin's desktop input or preview.
+Screen edges/banner and the pointer halo/DSH badge have independent controls. Customize text, top/bottom placement and the 200–3000ms hide delay, save and preview. The layers let clicks pass through, keep focus and leave Windows cursor themes intact. **Visible in remote sessions and recordings** is on by default, including virtual displays. Turning it off requests capture exclusion on supported Windows capture paths. Active monitor enumeration, display/session events and a 500ms topology check refresh the layers after display, layout or DPI changes. The indicators cover this plugin's complete desktop operation series, or a requested preview.
 
 Physical **Esc**, or a recorded key/combination, stops and keeps input paused until **Resume desktop control** is clicked. Record a shortcut and save; Restore default (Esc) clears the additional key. Esc cancels recording, and blur or 15 seconds of inactivity exits it. Ordinary mouse movement, other keys and injected keys do not trigger a physical stop. Hiding the indicator keeps the listener active.
 
-Cancellation is cooperative at segmented-input and post-resolution execution boundaries, with held-input cleanup. Delivered actions cannot be undone, and a blocking application Provider call must return first. The current bridge supplies no conversation-turn ID, so resume is explicit; a complete plugin restart creates a new control instance.
+In DSH, indicators stay visible from the first desktop call through observations and reasoning until the complete turn finishes or is cancelled. A host lease releases stale state; another conversation receives a busy result while the desktop is owned. Standalone stdio clients retain per-call indicators because they provide no DSH turn boundary. Regular mouse movement does not stop a series.
+
+Conversation rows use a mouse icon and readable action descriptions, expandable screenshots and an end-of-turn summary reconstructed from session events. Sent input is distinguished from verified effects. Supported element operations prefer UIA; pasting text no longer repositions the pointer. Coordinate actions still use the shared Windows pointer.
+
+Cancellation is cooperative at segmented-input and post-resolution execution boundaries, with held-input cleanup. Delivered actions cannot be undone, and a blocking application Provider call must return first. Resume remains explicit; a complete plugin restart creates a new control instance.

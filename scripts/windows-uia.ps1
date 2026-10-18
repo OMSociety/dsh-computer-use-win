@@ -1556,9 +1556,10 @@ function Move-ToPoint {
 
 function Type-Text {
   param([string]$Text, [bool]$RestoreClipboard = $true)
+  # Check the input desktop without repositioning the shared pointer. The user
+  # may have moved it since GetCursorPos returned; pasting needs no mouse move.
   $position = New-Object WindowsComputerUseNative+POINT
   if (-not [WindowsComputerUseNative]::GetCursorPos([ref]$position)) { throw 'COMPUTER_USE_INPUT_UNAVAILABLE: Windows input desktop is unavailable.' }
-  Move-ToPoint -X $position.x -Y $position.y
   $oldData = $null
   # Fail before replacing the clipboard if its contents cannot be preserved.
   if ($RestoreClipboard) { $rawData = [System.Windows.Forms.Clipboard]::GetDataObject()

@@ -25,9 +25,10 @@ export function atomicJson(file, value) {
 
 export class TakeoverControl {
   constructor({ powershell = 'powershell.exe', onStop = () => {}, configFile = process.env.WCU_CONFIG_FILE,
-    stateFile = process.env.WCU_STATE_FILE, testMode = false, config = {} } = {}) {
+    stateFile = process.env.WCU_STATE_FILE, activityFile=process.env.WCU_ACTIVITY_FILE,testMode = false, config = {} } = {}) {
     this.powershell = powershell; this.onStop = onStop; this.configFile = configFile; this.stateFile = stateFile;
     this.testMode = testMode; this.config = normalizeSettings(config); this.active = 0; this.paused = false;
+    this.activityFile=activityFile;this.seriesHeld=false;
     this.eventName = `Local\\DSH-WCU-${randomUUID()}`; this.waiters = new Map(); this.nextId = 0;
     this.resumeToken = this.config.resumeToken; this.previewToken = this.config.previewToken; this.pauseMessage = STOPPED;
     this.disabledForTest = process.env.NODE_ENV === 'test' && process.env.WCU_TEST_NO_TAKEOVER === '1';
@@ -37,13 +38,13 @@ export class TakeoverControl {
       this.pauseMessage = saved.pauseMessage ?? STOPPED;
       this.resumeToken = saved.resumeToken ?? this.resumeToken;
     } catch (error) { if (this.stateFile && error.code !== 'ENOENT') throw error; }
-    if (configFile) {
+    if (configFile||activityFile) {
       this.poll = setInterval(() => { this.sync().catch(error => this.fail(error)); }, 250);
       this.poll.unref();
     }
   }
   persist(reason) {
-    atomicJson(this.stateFile, { paused: this.paused, active: this.active, reason: reason ?? null,
+    atomicJson(this.stateFile, { paused: this.paused, active: this.active, seriesActive:this.seriesHeld,reason: reason ?? null,
       resumeToken: this.resumeToken, pauseMessage: this.paused ? this.pauseMessage : null, updatedAt: new Date().toISOString() });
   }
   async sync() {
@@ -54,13 +55,28 @@ export class TakeoverControl {
   async syncInner() {
     if (this.closed) return;
     if (this.configFile) this.config = normalizeSettings(JSON.parse(await readFile(this.configFile, 'utf8')));
-    if (this.child && (this.sentShortcut !== this.config.stopShortcut || this.sentCursorIndicator !== this.config.cursorIndicatorEnabled || this.sentRemoteVisible !== this.config.remoteIndicatorVisible)) {
-      await this.command('configure', { stopShortcut: this.config.stopShortcut, cursorIndicatorEnabled: this.config.cursorIndicatorEnabled,remoteIndicatorVisible:this.config.remoteIndicatorVisible });
+    if(this.activityFile){
+      const activity=JSON.parse(await readFile(this.activityFile,'utf8'));
+      const held=activity.active===true&&Number.isFinite(activity.expiresAt)&&activity.expiresAt>Date.now();
+      if(held!==this.seriesHeld){
+        this.seriesHeld=held;
+        if(!this.paused&&!this.disabledForTest){
+          if(held)await this.command('begin',this.config);
+          else if(this.active===0&&this.child)await this.command('end');
+        }
+        this.persist();
+      }
+    }
+    const presentation=JSON.stringify([this.config.indicatorEnabled,this.config.cursorIndicatorEnabled,this.config.remoteIndicatorVisible,this.config.indicatorText,this.config.indicatorPosition,this.config.indicatorIdleMs,this.config.stopShortcut]);
+    if (this.child && this.sentPresentation!==presentation) {
+      await this.command((this.seriesHeld||this.active>0)&&!this.paused?'begin':'configure', this.config);
+      this.sentPresentation=presentation;
       this.sentShortcut = this.config.stopShortcut; this.sentCursorIndicator = this.config.cursorIndicatorEnabled;this.sentRemoteVisible=this.config.remoteIndicatorVisible;
     }
     if (this.config.resumeToken !== this.resumeToken && this.active === 0) {
       if (this.child) await this.command('resume');
       this.resumeToken = this.config.resumeToken; this.paused = false; this.persist('resumed-by-user');
+      if(this.seriesHeld&&!this.disabledForTest)await this.command('begin',this.config);
     }
     if (this.config.previewToken !== this.previewToken) {
       this.previewToken = this.config.previewToken;
@@ -71,7 +87,7 @@ export class TakeoverControl {
     await this.sync();
     if (this.paused) throw new Error(this.pauseMessage);
     if (this.closed) throw new Error('COMPUTER_USE_STOPPING');
-    if (!this.disabledForTest) {
+    if (!this.disabledForTest&&(!this.seriesHeld||!this.child)) {
       try { await this.command('begin', this.config); this.sentShortcut = this.config.stopShortcut; this.sentCursorIndicator = this.config.cursorIndicatorEnabled;this.sentRemoteVisible=this.config.remoteIndicatorVisible; }
       catch (error) { this.fail(error); throw error; }
     }
@@ -80,7 +96,7 @@ export class TakeoverControl {
   }
   async end() {
     this.active = Math.max(0, this.active - 1); this.persist(this.paused ? 'stopped-by-user' : null);
-    if (this.active === 0 && this.child && !this.paused) await this.command('end').catch(error => this.fail(error));
+    if (this.active === 0 && !this.seriesHeld&&this.child && !this.paused) await this.command('end').catch(error => this.fail(error));
   }
   fail(error) {
     if (this.closed || this.paused) return;
@@ -131,6 +147,7 @@ export class TakeoverControl {
     return this.starting;
   }
   async command(command, params = {}) {
+    if(this.closed&&command!=='close')throw Error('COMPUTER_USE_STOPPING');
     await this.start();
     const id = ++this.nextId;
     return new Promise((resolve, reject) => {

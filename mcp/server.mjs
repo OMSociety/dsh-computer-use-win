@@ -783,7 +783,7 @@ function killBackend(error = new Error("Backend process stopped"), proc = backen
 
 let takeoverSetup = Promise.resolve();
 async function runBackend(action, args = {}, timeoutMs = 30000, request) {
-  const changesDesktop = inputActions.has(action) || args.activate === true;
+  const changesDesktop = action!=='health';
   let acquired = false;
   // Reserve preparation in arrival order. Otherwise awaiting the native
   // indicator can let a later observation reach the backend before its input.

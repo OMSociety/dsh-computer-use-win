@@ -153,8 +153,21 @@ window.__ModuleLoader__.load({
       [data-wincu-settings] [data-tone=success]{color:var(--dsw-alias-label-success,#4fa77b)}
       @media(max-width:700px){[data-wincu-settings] .wcu-section{padding:16px}[data-wincu-settings] .wcu-preview{grid-template-columns:1fr}[data-wincu-settings] .wcu-stop{flex-direction:column}[data-wincu-settings] .wcu-footer{flex-wrap:wrap}}
     `;
-    function Card({scope,t,savePatch,as='li',idPrefix='wincu'}) {
+    Object.assign(dictionaries.zh,{pluginDescription:'让 AI 操作 Windows 桌面，支持控制提示、停止快捷键和工具选择。',openSettings:'点击进行具体设置 →',notLoaded:'未能读取 Computer Use 设置。宿主尚未提供此配置，请刷新页面或重新启动 DSH 后重试。',loadingSettings:'正在读取 Computer Use 设置…',reloadSettings:'刷新页面',delayHint:'整轮操作结束后再隐藏提示。范围 200–3000 毫秒。'});
+    Object.assign(dictionaries.en,{pluginDescription:'Let the agent use Windows apps, with control indicators, stop shortcuts and tool selection.',openSettings:'Click to configure →',notLoaded:'Computer Use settings could not be read. The host has not exposed this configuration. Refresh or restart DSH.',loadingSettings:'Loading Computer Use settings…',reloadSettings:'Refresh page',delayHint:'Hide the indicator after the complete operation series ends. Range: 200–3000 ms.'});
+    function Card({scope,t,savePatch,as='li',idPrefix='wincu',view}) {
+      if(view==='summary')return h('span',{'data-wincu-summary':true},t('pluginDescription'),' ',h('span',{style:{color:'var(--dsw-alias-label-link,#71a7ff)'}},t('openSettings')));
+      return h(SettingsGate,{scope,t,savePatch,as,idPrefix});
+    }
+    function SettingsGate(props){
+      const state=React.useSyncExternalStore(fn=>props.scope.subscribe(fn),()=>props.scope.getSnapshot());
+      if((state.status!==undefined&&state.status!=='ready')||!state.value)return h(props.as,{'data-wincu-unavailable':true},h('p',{role:'status'},props.t(state.status==='loading'?'loadingSettings':'notLoaded')),h('button',{type:'button',onClick:()=>window.location.reload()},props.t('reloadSettings')));
+      return h(SettingsCard,props);
+    }
+    function SettingsCard({scope,t,savePatch,as='li',idPrefix='wincu'}) {
       const state = React.useSyncExternalStore(listener => scope.subscribe(listener), () => scope.getSnapshot());
+      const available=state.status===undefined?state.value!==undefined:state.status==='ready';
+      const writable=available&&state.writable;
       const saved = {...defaults,...state.value};
       if(!state.value?.toolPreset||saved.toolPreset==='auto')saved.toolPreset=saved.enabledTools.length===allToolNames.length?'full':'custom';
       const [draft,setDraft] = React.useState(saved), [dirty,setDirty] = React.useState(false);
@@ -166,7 +179,7 @@ window.__ModuleLoader__.load({
       const selectTools=(names,enabled)=>{const selected=new Set(draft.enabledTools);for(const name of names)enabled?selected.add(name):selected.delete(name);change('enabledTools',allToolNames.filter(name=>selected.has(name)));};
       React.useEffect(()=>{
         if(!recording)return;
-        if(!state.writable||saving){setRecording(false);return;}
+        if(!writable||saving){setRecording(false);return;}
         const cancel=()=>{setRecording(false);setRecordMessage('recordCancelled');};
         const keydown=event=>{
           if(event.isComposing)return;
@@ -180,7 +193,7 @@ window.__ModuleLoader__.load({
         const timer=setTimeout(()=>{setRecording(false);setRecordMessage('recordTimedOut');},15000);
         window.addEventListener('keydown',keydown,true);window.addEventListener('blur',cancel);
         return ()=>{clearTimeout(timer);window.removeEventListener('keydown',keydown,true);window.removeEventListener('blur',cancel);};
-      },[recording,state.writable,saving,savedKey]);
+      },[recording,writable,saving,savedKey]);
       const run = async (patch,success) => {
         setSaving(true);setMessage('');
         try {await savePatch(patch);setMessage(t(success));setTone('success');return true;}
@@ -192,7 +205,7 @@ window.__ModuleLoader__.load({
         const patch=Object.fromEntries(Object.keys(defaults).filter(key=>!equal(draft[key],saved[key])).map(key=>[key,draft[key]]));
         if(await run(patch,'saved'))setDirty(false);
       };
-      const disabled = saving||!state.writable||recording,indicatorDisabled=disabled||!draft.indicatorEnabled;
+      const disabled = saving||!writable||recording,indicatorDisabled=disabled||!draft.indicatorEnabled;
       const activeTools=draft.toolPreset==='full'?allToolNames:draft.toolPreset==='lite'?liteToolNames:draft.enabledTools;
       const customDisabled=disabled||draft.toolPreset!=='custom';
       const radio=(field,value,label)=>h('label',{key:value},h('input',{type:'radio',name:idPrefix+'-'+field,id:idPrefix+'-'+field+'-'+value,value,checked:draft[field]===value,disabled:indicatorDisabled,onChange:()=>change(field,value)}),label);
@@ -229,22 +242,102 @@ window.__ModuleLoader__.load({
           h('div',{className:'wcu-row wcu-stop'},h('div',null,h('div',{className:'wcu-stop-title'},h('kbd',{className:'wcu-key'},'Esc'),t('escTitle')),h('p',null,t('stopHint'))),button('resume',{disabled,onClick:()=>run({resumeToken:Date.now()},'resumed')})),
           h('div',{className:'wcu-detail','data-wincu-shortcut':'true'},h('span',{className:'wcu-label'},t('extraStop')),h('p',null,t('shortcutHint')),
             h('div',{className:'wcu-shortcut-row'},h('output',{className:'wcu-shortcut-value','data-recording':recording,'aria-live':'polite','aria-label':t('extraStop')},recording?t('listening'):(draft.stopShortcut?draft.stopShortcut.split('+').join(' + '):t('noShortcut'))),
-              button(recording?'cancelRecord':draft.stopShortcut?'rerecord':'record',{disabled:saving||!state.writable,onClick:()=>{setRecordMessage('');setRecording(!recording);}}),
+              button(recording?'cancelRecord':draft.stopShortcut?'rerecord':'record',{disabled:saving||!writable,onClick:()=>{setRecordMessage('');setRecording(!recording);}}),
               button('clearShortcut',{disabled:disabled||!draft.stopShortcut,onClick:()=>{change('stopShortcut','');setRecordMessage('');}})),
             recordMessage&&h('p',{role:'status'},t(recordMessage)))),
-        !state.writable&&h('p',{role:'status','data-tone':'error'},t('unavailable')),
+        !writable&&h('p',{role:'status','data-tone':'error'},t(available?'unavailable':'notLoaded')),
         h('footer',{className:'wcu-footer'},h('span',{className:'wcu-status',role:'status','aria-live':'polite','data-tone':message?tone:undefined},message||t(dirty?'dirty':'clean')),
           h('div',{className:'wcu-actions'},button('discard',{disabled:!dirty||saving||recording,onClick:()=>{setDraft(saved);setDirty(false);setMessage('');setRecordMessage('');}}),button('save',{className:'wcu-primary',disabled:!dirty||disabled,onClick:save}))));
     }
+    const actionKeys={snapshot:'see',screenshot:'see',accessibility_tree:'read',list_windows:'windows',find:'findControl',element_info:'read',click:'clickAction',double_click:'doubleClick',move:'movePointer',drag:'dragAction',scroll:'scrollAction',type_text:'typeAction',keypress:'keyAction',focus:'focusAction',invoke:'invokeAction',set_value:'valueAction',activate_window:'windowAction',wait:'waitAction',ocr:'ocrAction',wait_for:'verifyAction',close_window:'closeAction',move_window:'moveWindowAction',health:'healthAction',tools:'toolsAction'};
+    Object.assign(dictionaries.zh,{see:'查看了屏幕',read:'读取了界面控件',windows:'查看了打开的窗口',findControl:'查找了界面控件',clickAction:'点击了目标位置',doubleClick:'双击了目标位置',movePointer:'移动了鼠标',dragAction:'拖动了目标',scrollAction:'滚动了页面',typeAction:'输入了文本',keyAction:'发送了按键',focusAction:'聚焦了目标控件',invokeAction:'操作了目标控件',valueAction:'填写了控件内容',windowAction:'切换了目标窗口',waitAction:'等待了界面响应',ocrAction:'识别了屏幕文字',verifyAction:'检查了操作结果',closeAction:'请求关闭窗口',moveWindowAction:'移动了窗口',healthAction:'检查了桌面服务',toolsAction:'查看了工具配置',working:'正在操作…',completed:'已完成',failedAction:'未完成',stoppedAction:'已停止',seriesTitle:'本轮桌面操作',sentOnly:'操作已发送，效果待确认',showDetails:'查看步骤和截图',searchSubmitted:'在浏览器中提交了搜索',searchObserved:'在浏览器中搜索了',seriesCount:'步操作',stepError:'操作失败',and:'，并'});
+    Object.assign(dictionaries.en,{see:'Viewed the screen',read:'Read interface controls',windows:'Listed open windows',findControl:'Looked for controls',clickAction:'Clicked the target',doubleClick:'Double-clicked the target',movePointer:'Moved the pointer',dragAction:'Dragged the target',scrollAction:'Scrolled the page',typeAction:'Entered text',keyAction:'Sent a key press',focusAction:'Focused a control',invokeAction:'Operated a control',valueAction:'Filled in a control',windowAction:'Switched windows',waitAction:'Waited for the interface',ocrAction:'Read screen text',verifyAction:'Checked the result',closeAction:'Requested window close',moveWindowAction:'Moved a window',healthAction:'Checked desktop service',toolsAction:'Viewed tool settings',working:'Working…',completed:'Completed',failedAction:'Incomplete',stoppedAction:'Stopped',seriesTitle:'Desktop activity',sentOnly:'Input sent; effect unconfirmed',showDetails:'Steps and screenshots',searchSubmitted:'Submitted a browser search for',searchObserved:'Searched the browser for',seriesCount:'steps',stepError:'Action failed',and:', then '});
+    const shortTool=name=>String(name||'').replace(/^(?:mcp__wincu__)?windows_computer_use_/,'');
+    const desktopTool=name=>/^(?:mcp__wincu__)?windows_computer_use_(?!health$|tools$)[a-z_]+$/.test(name||'');
+    const objectArgs=value=>{if(typeof value==='string')try{return JSON.parse(value);}catch{return {};}return value&&typeof value==='object'?value:{};};
+    function receipt(message){
+      for(const part of message?.content||[])if(part.type==='text'&&typeof part.text==='string')try{return JSON.parse(part.text);}catch{}
+      return {};
+    }
+    const resultStatus=message=>message?.isError?((message.content||[]).some(part=>part.type==='text'&&/COMPUTER_USE_STOPPED_BY_USER/.test(part.text))?'stopped':'failed'):'completed';
+    const mouseIcon=()=>h('svg',{viewBox:'0 0 24 24',width:17,height:17,fill:'none',stroke:'currentColor',strokeWidth:1.7,'aria-hidden':true,style:{verticalAlign:'middle',flexShrink:0}},h('rect',{x:6,y:2,width:12,height:20,rx:6}),h('path',{d:'M12 2v7M6 10h12'}));
+    const activityCss=`.wcu-activity{color:var(--dsw-alias-label-secondary,inherit);font-size:13px;line-height:1.6;margin:7px 0}.wcu-activity>summary{cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none}.wcu-activity>summary::-webkit-details-marker{display:none}.wcu-activity .wcu-activity-label{color:var(--dsw-alias-label-primary,inherit)}.wcu-activity .wcu-activity-state{font-size:12px;opacity:.72;margin-left:4px}.wcu-activity[open]{padding-bottom:8px}.wcu-activity ol{margin:10px 0 4px 22px;padding-left:16px}.wcu-activity li{padding:3px 0}.wcu-activity pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:240px;overflow:auto}.wcu-activity .wcu-activity-note{font-size:12px;opacity:.75}.wcu-activity button{color:inherit;background:transparent;border:1px solid var(--dsw-alias-border-l2,#8885);border-radius:6px;padding:3px 8px;cursor:pointer}`;
+    function actionText(call,t){
+      const args=objectArgs(call.args),action=shortTool(call.name);
+      let label=t(actionKeys[action]||'seriesTitle');
+      if(['activate_window','close_window','move_window'].includes(action)&&args.windowTitle)label+='「'+String(args.windowTitle).slice(0,90)+'」';
+      if(action==='find'&&args.query)label+='「'+String(args.query).slice(0,60)+'」';
+      return label;
+    }
+    function seriesText(calls,t){
+      const textCall=calls.find(c=>c.status==='completed'&&shortTool(c.name)==='type_text'&&typeof objectArgs(c.args).text==='string');
+      const query=textCall?objectArgs(textCall.args).text.trim():'';
+      const searchWindow=calls.find(c=>c.status==='completed'&&/搜索|search|bing|google|百度/i.test(String(objectArgs(c.args).windowTitle||receipt(c.message).window?.title||'')));
+      const submitted=textCall&&calls.find(c=>c.seq>textCall.seq&&shortTool(c.name)==='keypress'&&(objectArgs(c.args).keys||[]).some(key=>/^enter$/i.test(key))&&c.status==='completed');
+      if(searchWindow&&submitted&&query&&query.length<=100&&!/[\r\n]/.test(query)){
+        const observed=calls.some(c=>c.seq>submitted.seq&&['screenshot','snapshot','ocr','wait_for'].includes(shortTool(c.name))&&c.status==='completed'&&(String(receipt(c.message).window?.title||'').includes(query)||(shortTool(c.name)==='wait_for'&&receipt(c.message).verification==='observed'&&objectArgs(c.args).query===query)));
+        return t(observed?'searchObserved':'searchSubmitted')+'「'+query+'」';
+      }
+      const actions=[...new Set(calls.filter(c=>c.status==='completed').map(c=>actionText(c,t)))];
+      return actions.slice(-3).join(t('and'))||t('seriesTitle');
+    }
+    function activityBody(call,renderFactorySlot,loadImage,t){
+      const data=receipt(call.message),images=(call.message?.content||[]).filter(x=>x.type==='image'&&x.attachment);
+      return h(React.Fragment,null,
+        data.verification==='sent'&&h('div',{className:'wcu-activity-note'},t('sentOnly')),
+        ['failed','stopped'].includes(call.status)&&h('div',{role:'status'},t(call.status==='stopped'?'stoppedAction':'stepError')),
+        images.length>0&&renderFactorySlot&&loadImage&&renderFactorySlot('conversation.images.content',{images,loadImage,align:'start'}));
+    }
+    function MouseToolRow({toolName,phase,block,renderFactorySlot,loadImage,inspect,t}){
+      const message=phase==='result'?block.message:undefined;
+      const status=phase==='result'?resultStatus(message):'working';
+      const call={name:toolName,args:block.call?.arguments??block.arguments,message,status};
+      return h('details',{className:'wcu-activity','data-wincu-action':true},h('style',null,activityCss),h('summary',null,mouseIcon(),h('span',{className:'wcu-activity-label'},status==='working'?t('working'):actionText(call,t)),h('span',{className:'wcu-activity-state'},t(status==='failed'?'failedAction':status==='stopped'?'stoppedAction':status))),activityBody(call,renderFactorySlot,loadImage,t),inspect&&h('button',{type:'button',onClick:inspect},t('showDetails')));
+    }
+    function reduceSeries(state,event){
+      const data=event.data||{};
+      if(event.type==='tool/call'&&desktopTool(data.name))return {...state,calls:[...state.calls,{id:data.callId,name:data.name,args:data.arguments,seq:event.seq,status:'working'}]};
+      if(event.type==='tool/result')return {...state,calls:state.calls.map(call=>call.id===data.message?.callId?{...call,message:data.message,status:resultStatus(data.message)}:call)};
+      if(event.type==='turn/end')return {...state,ended:true,reason:data.reason?.kind||'completed'};
+      return state;
+    }
+    const seriesDefinition={
+      kind:'wincu-series',target:'chat',
+      match:event=>['turn/start','turn/end','tool/call','tool/result'].includes(event.type)&&Number.isInteger(event.data?.turn)?{id:String(event.data.turn),role:'start'}:null,
+      start:(_context,match)=>reduceSeries({calls:[],seq:match.event.seq,ended:false},match.event),
+      update:(context,match)=>reduceSeries(context.state,match.event),
+      buildViewNode:context=>!context.state?.ended||!context.state.calls.length?null:{key:context.key,kind:'wincu-series',id:context.id,target:'chat',anchorSeq:context.state.calls[0].seq,location:context.start?.location??{kind:'unresolved'},visibility:'visible',data:context.state}
+    };
+    function SeriesRow({node,t,renderFactorySlot,loadImage}){
+      const state=node.data,status=state.reason==='aborted'||state.calls.some(c=>c.status==='stopped')?'stoppedAction':state.reason==='error'||state.calls.some(c=>c.status!=='completed')?'failedAction':'completed';
+      return h('details',{className:'wcu-activity','data-wincu-series':true},h('style',null,activityCss),h('summary',null,mouseIcon(),h('span',{className:'wcu-activity-label'},seriesText(state.calls,t)),h('span',{className:'wcu-activity-state'},t(status)+' · '+state.calls.length+' '+t('seriesCount'))),h('ol',null,...state.calls.map(call=>h('li',{key:call.id},actionText(call,t),activityBody(call,renderFactorySlot,loadImage,t)))));
+    }
+    function registerActivity(ctx){
+      ctx.slots.inject('tool.call.toolview',function*(){for(const name of allToolNames)for(const prefix of ['mcp__wincu__windows_computer_use_','windows_computer_use_'])yield ctx.slots.register({name:'tool.call.toolview',key:prefix+name,locale:NS},MouseToolRow);});
+      ctx.inject(['uiConversation'],owner=>{
+        owner.uiConversation.events.register(seriesDefinition);
+        ctx.slots.inject('conversation.chat.node',()=>ctx.slots.register({name:'conversation.chat.node',key:'wincu-series',locale:NS},SeriesRow));
+      });
+    }
     function apply(ctx) {
       ctx.effect(()=>ctx.locale.register(NS,dictionaries));
+      registerActivity(ctx);
       const t=ctx.locale.bind?ctx.locale.bind(NS):key=>key;
       let mounted=false;
+      let modernRemote;
+      ctx.inject(['remote','remote.settings'],owner=>{modernRemote=owner.remote.settings;return ()=>{modernRemote=undefined;};});
       const mount=(scope,owner,namespace)=>{
       if(mounted)return;mounted=true;
       const connection=typeof scope.mutate==='function'?undefined:owner.connection;
       const savePatch=async patch=>{
-        if(typeof scope.mutate==='function'){
+        const current=scope.getSnapshot();
+        if(current.status!==undefined&&current.status!=='ready')throw Error(t('notLoaded'));
+        if(modernRemote&&owner.configForms){
+          const response=await modernRemote.mutate(namespace,Object.entries(patch).map(([field,value])=>({op:'set',path:[field],value})),current.revision);
+          if(response.ok)owner.configForms.describe().acceptView(response.value);
+          else await owner.configForms.describe().load();
+          if(!response.ok)throw Error(response.error?.message||response.error?.code||t('persistFailed'));
+        }else if(typeof scope.mutate==='function'){
           const accepted=await scope.mutate(Object.entries(patch).map(([field,value])=>({op:'set',path:[field],value})),scope.getSnapshot().revision);
           if(!accepted)throw Error(t('persistFailed'));
         }else if(connection?.api?.settings?.mutate){
