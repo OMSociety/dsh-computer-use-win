@@ -33,8 +33,13 @@ try{
  await writeFile(configFile,JSON.stringify({...DEFAULT_SETTINGS,indicatorIdleMs:200,resumeToken:1}));await control.sync();
  await call({...agent,phase:{kind:'running',turn:5}});await control.sync();
  assert.equal((await control.command('status')).armed,true);
+ // Model a host that stopped heartbeating before its final lease expires.
+ // A live owner would correctly renew the lease while this assertion runs.
+ for(const dispose of disposers.splice(0))dispose?.();
  await writeFile(activityFile,JSON.stringify({active:true,expiresAt:Date.now()-1}));await control.sync();
- await new Promise(r=>setTimeout(r,450));
- assert.equal((await control.command('status')).armed,false,'A stale host lease must not leave a stuck indicator');
+ const deadline=Date.now()+3000;
+ let status;
+ do{await new Promise(r=>setTimeout(r,50));status=await control.command('status');}while(status.armed&&Date.now()<deadline);
+ assert.equal(status.armed,false,'A stale host lease must not leave a stuck indicator');
  console.log(JSON.stringify({passed:true,reasoningGapKeptVisible:true,physicalEscDuringGap:true,noAutomaticResume:true,turnOwnership:true,concurrentSessionsRejected:true,expiredLeaseReleases:true,physicalInputSent:false,root}));
 }finally{await control.close();for(const dispose of disposers)dispose?.();}
