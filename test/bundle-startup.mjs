@@ -82,7 +82,9 @@ export async function probe(config, extraEnv = {}) {
   Object.assign(env, {
     TEMP: process.env.TEMP || os.tmpdir(), TMP: process.env.TMP || os.tmpdir(),
     WINDOWS_CU_POWERSHELL: process.env.WINDOWS_CU_POWERSHELL || 'powershell.exe',
-    WCU_INDICATOR: '0'
+    // The SDK deliberately does not inherit these test-only variables. This
+    // transport fixture must not install a real desktop stop hook on CI.
+    NODE_ENV: 'test', WCU_TEST_NO_TAKEOVER: '1', WCU_INDICATOR: '0'
   }, config.env || {}, extraEnv);
   const transport = new StdioClientTransport({
     command: config.command, args: config.args, env, stderr: 'pipe'
@@ -112,7 +114,7 @@ export async function probe(config, extraEnv = {}) {
     result = {
       ...result,
       healthOk: health.ok === true && reply.isError !== true,
-      waitOk: wait.isError !== true, resourceCount: resources.resources.length
+      waitOk: wait.isError !== true, ...(wait.isError?{waitError:wait.content}:{}),resourceCount: resources.resources.length
     };
   } catch (error) {
     result = { ...result, error: String(error) };
