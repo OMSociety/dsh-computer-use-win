@@ -18,7 +18,7 @@ No visual model is bundled. A vision-capable caller or external parser can consu
 
 ### tools — discovery and on-demand loading
 
-DSH defaults to Lite (nine common tools plus discovery). Full includes all 23 desktop tools plus discovery. Standalone MCP defaults to Full. `windows_computer_use_tools` accepts `operation: list | describe | enable | disable | reset` and optional `names`, an array of short or complete tool names. `describe` requires exactly one name and returns its original full description and schema. `enable`/`disable` require names and send a tool-list change notification on changes. `reset` takes no names and restores the startup set. Invalid names never partially change the list. Discovery does not start PowerShell.
+DSH defaults to All (23 desktop tools plus management). Lite includes nine common tools plus management; Custom loads the user's selection. Standalone MCP also defaults to All. `windows_computer_use_tools` accepts `operation: list | describe | enable | disable | reset` and optional `names`, an array of short or complete tool names. `describe` requires exactly one name and returns its original full description and schema. `enable`/`disable` require names and send a tool-list change notification on changes. `reset` takes no names and restores the user's startup set. Invalid names never partially change the list. Discovery does not start PowerShell.
 
 See [on-demand tools](../tool-context.md) for bilingual configuration and client compatibility notes. The contracts below describe all desktop capabilities; they are not all injected in Lite mode. Compact advertised prose does not remove their parameter validation.
 
