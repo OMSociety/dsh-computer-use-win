@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generator": "maintain-file-logs",
-  "revision": 5,
+  "revision": 6,
   "entries": [
     {
       "id": "6a0edc82-555f-4cd9-a779-b3aa66b30402",
@@ -12,17 +12,39 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:3613:1791909971236142000"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:3765:1792437281366014300"
       },
       "child_index": null,
       "path": "activation-cancellation.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:3613:1791909971236142000",
-        "size_bytes": 3613,
-        "mtime_ns": 1791909971236142000
+        "fingerprint": "stat:3765:1792437281366014300",
+        "size_bytes": 3765,
+        "mtime_ns": 1792437281366014300
+      }
+    },
+    {
+      "id": "f9247d18-ca35-49af-807e-db58eea209fd",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:6084:1792437281366528400"
+      },
+      "child_index": null,
+      "path": "activity-series.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:6084:1792437281366528400",
+        "size_bytes": 6084,
+        "mtime_ns": 1792437281366528400
       }
     },
     {
@@ -34,17 +56,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:6165:1791950551193243200"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:6553:1792437281367044400"
       },
       "child_index": null,
       "path": "backend-lifecycle.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:6165:1791950551193243200",
-        "size_bytes": 6165,
-        "mtime_ns": 1791950551193243200
+        "fingerprint": "stat:6553:1792437281367044400",
+        "size_bytes": 6553,
+        "mtime_ns": 1792437281367044400
       }
     },
     {
@@ -56,17 +78,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:1650:1791889928196855200"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:1650:1792437281368090600"
       },
       "child_index": null,
       "path": "bench-latency.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:1650:1791889928196855200",
+        "fingerprint": "stat:1650:1792437281368090600",
         "size_bytes": 1650,
-        "mtime_ns": 1791889928196855200
+        "mtime_ns": 1792437281368090600
       }
     },
     {
@@ -78,17 +100,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:2029:1791889928196855200"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2029:1792437281368614500"
       },
       "child_index": null,
       "path": "bench-persistent.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2029:1791889928196855200",
+        "fingerprint": "stat:2029:1792437281368614500",
         "size_bytes": 2029,
-        "mtime_ns": 1791889928196855200
+        "mtime_ns": 1792437281368614500
       }
     },
     {
@@ -100,17 +122,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:9938:1791949533900621600"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:10391:1792437281369199200"
       },
       "child_index": null,
       "path": "bundle-startup.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:9938:1791949533900621600",
-        "size_bytes": 9938,
-        "mtime_ns": 1791949533900621600
+        "fingerprint": "stat:10391:1792437281369199200",
+        "size_bytes": 10391,
+        "mtime_ns": 1792437281369199200
       }
     },
     {
@@ -132,28 +154,28 @@
       },
       "derived_from": [],
       "verification": {
-        "status": "partial",
-        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:844:1791998861669419200"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:857:1792437281369786600"
       },
       "child_index": null,
       "path": "client-settings-contract.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:844:1791998861669419200",
-        "size_bytes": 844,
-        "mtime_ns": 1791998861669419200
+        "fingerprint": "stat:857:1792437281369786600",
+        "size_bytes": 857,
+        "mtime_ns": 1792437281369786600
       }
     },
     {
       "id": "85709c1c-b104-44e2-9de0-a2d6e6cf32ed",
-      "summary": "用真实 React 卡片和确定性 scope 夹具验证中英文、暂存、取消、保存失败与只读。",
-      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
+      "summary": "Chromium UI regression covering Lazy save/remount, languages and custom-list preservation.",
+      "read_when": "Read when investigating version 0.5.0 behavior, tests or packaging.",
       "tags": [],
       "locators": [
         {
           "type": "literal",
-          "value": "settings.plugin.item"
+          "value": "settings-lazy.png"
         }
       ],
       "generation": {
@@ -164,17 +186,17 @@
       },
       "derived_from": [],
       "verification": {
-        "status": "partial",
-        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:5997:1791999807618360400"
+        "status": "verified",
+        "evidence": "Read implementation and relevant tests in the issue 37 task; local checks passed.",
+        "fingerprint": "stat:26818:1792437693852580900"
       },
       "child_index": null,
       "path": "client-settings-electron.cjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:5997:1791999807618360400",
-        "size_bytes": 5997,
-        "mtime_ns": 1791999807618360400
+        "fingerprint": "stat:26818:1792437693852580900",
+        "size_bytes": 26818,
+        "mtime_ns": 1792437693852580900
       }
     },
     {
@@ -186,17 +208,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:1728:1791889928198357800"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:1728:1792437281370855600"
       },
       "child_index": null,
       "path": "debug-dpi.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:1728:1791889928198357800",
+        "fingerprint": "stat:1728:1792437281370855600",
         "size_bytes": 1728,
-        "mtime_ns": 1791889928198357800
+        "mtime_ns": 1792437281370855600
       }
     },
     {
@@ -208,17 +230,88 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:3616:1791889928199360900"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:3616:1792437281371379300"
       },
       "child_index": null,
       "path": "debug-homing.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:3616:1791889928199360900",
+        "fingerprint": "stat:3616:1792437281371379300",
         "size_bytes": 3616,
-        "mtime_ns": 1791889928199360900
+        "mtime_ns": 1792437281371379300
+      }
+    },
+    {
+      "id": "9af0684d-15a4-43d0-8f08-d8ccef1bf3f7",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:3922:1792437281371904300"
+      },
+      "child_index": null,
+      "path": "host-client-discovery.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:3922:1792437281371904300",
+        "size_bytes": 3922,
+        "mtime_ns": 1792437281371904300
+      }
+    },
+    {
+      "id": "b1385487-8112-4a87-8bbf-09094f55965e",
+      "summary": "Real DSH settings and MCP registry reload, Lazy restart and batch notification tests.",
+      "read_when": "Read when investigating version 0.5.0 behavior, tests or packaging.",
+      "tags": [],
+      "locators": [
+        {
+          "type": "literal",
+          "value": "lazyDynamicRegistry"
+        }
+      ],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "verified",
+        "evidence": "Read implementation and relevant tests in the issue 37 task; local checks passed.",
+        "fingerprint": "stat:11946:1792437592644272400"
+      },
+      "child_index": null,
+      "path": "host-settings-integration.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:11946:1792437592644272400",
+        "size_bytes": 11946,
+        "mtime_ns": 1792437592644272400
+      }
+    },
+    {
+      "id": "9ce082b8-fb69-4f9e-a35e-0e61f6496253",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:361:1792437281373016900"
+      },
+      "child_index": null,
+      "path": "host-settings-lock.ps1",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:361:1792437281373016900",
+        "size_bytes": 361,
+        "mtime_ns": 1792437281373016900
       }
     },
     {
@@ -230,17 +323,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:7191:1791911689431226500"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:7285:1792437281373535700"
       },
       "child_index": null,
       "path": "input-upgrade-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:7191:1791911689431226500",
-        "size_bytes": 7191,
-        "mtime_ns": 1791911689431226500
+        "fingerprint": "stat:7285:1792437281373535700",
+        "size_bytes": 7285,
+        "mtime_ns": 1792437281373535700
       }
     },
     {
@@ -252,17 +345,71 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:1546:1791916057545915300"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:1583:1792437281374051500"
       },
       "child_index": null,
       "path": "install-electron.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:1546:1791916057545915300",
-        "size_bytes": 1546,
-        "mtime_ns": 1791916057545915300
+        "fingerprint": "stat:1583:1792437281374051500",
+        "size_bytes": 1583,
+        "mtime_ns": 1792437281374051500
+      }
+    },
+    {
+      "id": "1de4faff-043e-4c8d-930d-b4b4b1c1262a",
+      "summary": "Native health, screenshot and wait after Lazy loading; no physical input.",
+      "read_when": "Read when investigating version 0.5.0 behavior, tests or packaging.",
+      "tags": [],
+      "locators": [
+        {
+          "type": "literal",
+          "value": "screenshotBytes"
+        }
+      ],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "verified",
+        "evidence": "Read implementation and relevant tests in the issue 37 task; local checks passed.",
+        "fingerprint": "stat:2002:1792437871199997700"
+      },
+      "child_index": null,
+      "path": "lazy-native-smoke.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:2002:1792437871199997700",
+        "size_bytes": 2002,
+        "mtime_ns": 1792437871199997700
+      }
+    },
+    {
+      "id": "45a0620c-9c4a-4e79-b0fd-0f9ff4b9bb7d",
+      "summary": "MCP regression for Lazy startup, wildcard restrictions, invalid-batch atomicity and reset.",
+      "read_when": "Read when investigating version 0.5.0 behavior, tests or packaging.",
+      "tags": [],
+      "locators": [
+        {
+          "type": "literal",
+          "value": "reports.push"
+        }
+      ],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "verified",
+        "evidence": "Read implementation and relevant tests in the issue 37 task; local checks passed.",
+        "fingerprint": "stat:4387:1792437472732910300"
+      },
+      "child_index": null,
+      "path": "lazy-tools.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:4387:1792437472732910300",
+        "size_bytes": 4387,
+        "mtime_ns": 1792437472732910300
       }
     },
     {
@@ -274,17 +421,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:2158:1791949315035684000"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2158:1792437281374559300"
       },
       "child_index": null,
       "path": "mcp-test-client.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2158:1791949315035684000",
+        "fingerprint": "stat:2158:1792437281374559300",
         "size_bytes": 2158,
-        "mtime_ns": 1791949315035684000
+        "mtime_ns": 1792437281374559300
       }
     },
     {
@@ -296,17 +443,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:2534:1791889928200360500"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2534:1792437281375790000"
       },
       "child_index": null,
       "path": "mcp-test.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2534:1791889928200360500",
+        "fingerprint": "stat:2534:1792437281375790000",
         "size_bytes": 2534,
-        "mtime_ns": 1791889928200360500
+        "mtime_ns": 1792437281375790000
       }
     },
     {
@@ -328,17 +475,17 @@
       },
       "derived_from": [],
       "verification": {
-        "status": "partial",
-        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:3761:1792000243613108100"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:3824:1792437281376307300"
       },
       "child_index": null,
       "path": "native-health-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:3761:1792000243613108100",
-        "size_bytes": 3761,
-        "mtime_ns": 1792000243613108100
+        "fingerprint": "stat:3824:1792437281376307300",
+        "size_bytes": 3824,
+        "mtime_ns": 1792437281376307300
       }
     },
     {
@@ -350,17 +497,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:3430:1791889928200360500"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:4452:1792437281376820300"
       },
       "child_index": null,
       "path": "native-input-errors.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:3430:1791889928200360500",
-        "size_bytes": 3430,
-        "mtime_ns": 1791889928200360500
+        "fingerprint": "stat:4452:1792437281376820300",
+        "size_bytes": 4452,
+        "mtime_ns": 1792437281376820300
       }
     },
     {
@@ -372,17 +519,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:4691:1791911227126175000"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:4691:1792437281377335700"
       },
       "child_index": null,
       "path": "native-window-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:4691:1791911227126175000",
+        "fingerprint": "stat:4691:1792437281377335700",
         "size_bytes": 4691,
-        "mtime_ns": 1791911227126175000
+        "mtime_ns": 1792437281377335700
       }
     },
     {
@@ -399,17 +546,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "partial",
-        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:2446:1792000377363417000"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2446:1792437281377851300"
       },
       "child_index": null,
       "path": "native-window-discovery.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2446:1792000377363417000",
+        "fingerprint": "stat:2446:1792437281377851300",
         "size_bytes": 2446,
-        "mtime_ns": 1792000377363417000
+        "mtime_ns": 1792437281377851300
       }
     },
     {
@@ -421,17 +568,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:4532:1791889928201361100"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:4532:1792437281378365600"
       },
       "child_index": null,
       "path": "notepad-e2e.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:4532:1791889928201361100",
+        "fingerprint": "stat:4532:1792437281378365600",
         "size_bytes": 4532,
-        "mtime_ns": 1791889928201361100
+        "mtime_ns": 1792437281378365600
       }
     },
     {
@@ -443,17 +590,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:5058:1791911371067877600"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:5269:1792437281378881900"
       },
       "child_index": null,
       "path": "observation-contract.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:5058:1791911371067877600",
-        "size_bytes": 5058,
-        "mtime_ns": 1791911371067877600
+        "fingerprint": "stat:5269:1792437281378881900",
+        "size_bytes": 5269,
+        "mtime_ns": 1792437281378881900
       }
     },
     {
@@ -465,17 +612,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:6734:1791911315540707800"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:6734:1792437281379886400"
       },
       "child_index": null,
       "path": "ocr-query-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:6734:1791911315540707800",
+        "fingerprint": "stat:6734:1792437281379886400",
         "size_bytes": 6734,
-        "mtime_ns": 1791911315540707800
+        "mtime_ns": 1792437281379886400
       }
     },
     {
@@ -487,44 +634,66 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:2553:1791949869248159800"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2775:1792437281379886400"
       },
       "child_index": null,
       "path": "profile-resolution.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2553:1791949869248159800",
-        "size_bytes": 2553,
-        "mtime_ns": 1791949869248159800
+        "fingerprint": "stat:2775:1792437281379886400",
+        "size_bytes": 2775,
+        "mtime_ns": 1792437281379886400
       }
     },
     {
       "id": "b46e54f7-f85b-435c-8b57-7050c477b258",
-      "summary": "以独立进程和临时目录运行 21 个 Windows 回归套件。",
-      "read_when": "需要该入口的行为、配置或回归细节时，打开原文件核实。",
+      "summary": "Sequential isolated runner for 26 Windows regression suites.",
+      "read_when": "Read when investigating version 0.5.0 behavior, tests or packaging.",
       "tags": [],
       "locators": [
         {
-          "type": "symbol",
-          "value": "suites"
+          "type": "literal",
+          "value": "lazy-tools"
         }
       ],
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "partial",
-        "evidence": "本轮读取并验证相关行为；不表示全量代码审计。",
-        "fingerprint": "stat:4278:1791998861670422700"
+        "status": "verified",
+        "evidence": "Read implementation and relevant tests in the issue 37 task; local checks passed.",
+        "fingerprint": "stat:4708:1792437448110733700"
       },
       "child_index": null,
       "path": "run-tests.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:4278:1791998861670422700",
-        "size_bytes": 4278,
-        "mtime_ns": 1791998861670422700
+        "fingerprint": "stat:4708:1792437448110733700",
+        "size_bytes": 4708,
+        "mtime_ns": 1792437448110733700
+      }
+    },
+    {
+      "id": "ac8108cd-9500-472e-9e20-be582c8a688f",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:1167:1792437281381389600"
+      },
+      "child_index": null,
+      "path": "schema-compatibility.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:1167:1792437281381389600",
+        "size_bytes": 1167,
+        "mtime_ns": 1792437281381389600
       }
     },
     {
@@ -536,17 +705,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:608:1791889928204937100"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:824:1792437281381389600"
       },
       "child_index": null,
       "path": "source-encoding.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:608:1791889928204937100",
-        "size_bytes": 608,
-        "mtime_ns": 1791889928204937100
+        "fingerprint": "stat:824:1792437281381389600",
+        "size_bytes": 824,
+        "mtime_ns": 1792437281381389600
       }
     },
     {
@@ -558,17 +727,83 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:3992:1791910286252015900"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:4036:1792437281381389600"
       },
       "child_index": null,
       "path": "sparse-canvas-smoke.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:3992:1791910286252015900",
-        "size_bytes": 3992,
-        "mtime_ns": 1791910286252015900
+        "fingerprint": "stat:4036:1792437281381389600",
+        "size_bytes": 4036,
+        "mtime_ns": 1792437281381389600
+      }
+    },
+    {
+      "id": "ebb06f63-79b9-4f46-a493-1334a998260a",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:3597:1792437281382904100"
+      },
+      "child_index": null,
+      "path": "takeover-cancellation.ps1",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:3597:1792437281382904100",
+        "size_bytes": 3597,
+        "mtime_ns": 1792437281382904100
+      }
+    },
+    {
+      "id": "54a8a38c-dce7-461e-8012-041bd2ff226f",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:1162:1792437281383908100"
+      },
+      "child_index": null,
+      "path": "takeover-event.ps1",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:1162:1792437281383908100",
+        "size_bytes": 1162,
+        "mtime_ns": 1792437281383908100
+      }
+    },
+    {
+      "id": "3d7e5417-8f62-4295-b7fe-fb1e016e003a",
+      "summary": "Existing file; contents not reviewed in this task.",
+      "read_when": "Read only when relevant to the requested change.",
+      "tags": [],
+      "locators": [],
+      "generation": null,
+      "derived_from": [],
+      "verification": {
+        "status": "unread",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:11339:1792437281383908100"
+      },
+      "child_index": null,
+      "path": "takeover-native.mjs",
+      "kind": "file",
+      "metadata": {
+        "fingerprint": "stat:11339:1792437281383908100",
+        "size_bytes": 11339,
+        "mtime_ns": 1792437281383908100
       }
     },
     {
@@ -580,17 +815,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:2015:1791889928204937100"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2015:1792437281384907400"
       },
       "child_index": null,
       "path": "test-capture.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2015:1791889928204937100",
+        "fingerprint": "stat:2015:1792437281384907400",
         "size_bytes": 2015,
-        "mtime_ns": 1791889928204937100
+        "mtime_ns": 1792437281384907400
       }
     },
     {
@@ -602,17 +837,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:8676:1791889928205936700"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:8676:1792437281384907400"
       },
       "child_index": null,
       "path": "test-features.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:8676:1791889928205936700",
+        "fingerprint": "stat:8676:1792437281384907400",
         "size_bytes": 8676,
-        "mtime_ns": 1791889928205936700
+        "mtime_ns": 1792437281384907400
       }
     },
     {
@@ -624,17 +859,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:4232:1791949315036684600"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:7714:1792437281385907400"
       },
       "child_index": null,
       "path": "tool-context.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:4232:1791949315036684600",
-        "size_bytes": 4232,
-        "mtime_ns": 1791949315036684600
+        "fingerprint": "stat:7714:1792437281385907400",
+        "size_bytes": 7714,
+        "mtime_ns": 1792437281385907400
       }
     },
     {
@@ -646,17 +881,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:14000:1791911315540707800"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:14223:1792437281385907400"
       },
       "child_index": null,
       "path": "uia-cache-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:14000:1791911315540707800",
-        "size_bytes": 14000,
-        "mtime_ns": 1791911315540707800
+        "fingerprint": "stat:14223:1792437281385907400",
+        "size_bytes": 14223,
+        "mtime_ns": 1792437281385907400
       }
     },
     {
@@ -668,17 +903,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:2729:1791910237955788200"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:2761:1792437281386907500"
       },
       "child_index": null,
       "path": "uia-chromium-fixture.cjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:2729:1791910237955788200",
-        "size_bytes": 2729,
-        "mtime_ns": 1791910237955788200
+        "fingerprint": "stat:2761:1792437281386907500",
+        "size_bytes": 2761,
+        "mtime_ns": 1792437281386907500
       }
     },
     {
@@ -690,17 +925,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:6151:1791911689432227100"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:6231:1792437281386907500"
       },
       "child_index": null,
       "path": "uia-chromium-smoke.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:6151:1791911689432227100",
-        "size_bytes": 6151,
-        "mtime_ns": 1791911689432227100
+        "fingerprint": "stat:6231:1792437281386907500",
+        "size_bytes": 6231,
+        "mtime_ns": 1792437281386907500
       }
     },
     {
@@ -712,17 +947,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:1901:1791891419613654400"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:1944:1792437281386907500"
       },
       "child_index": null,
       "path": "uia-native-fixture.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:1901:1791891419613654400",
-        "size_bytes": 1901,
-        "mtime_ns": 1791891419613654400
+        "fingerprint": "stat:1944:1792437281386907500",
+        "size_bytes": 1944,
+        "mtime_ns": 1792437281386907500
       }
     },
     {
@@ -734,17 +969,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:4705:1791912000259481500"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:4754:1792437281388409900"
       },
       "child_index": null,
       "path": "uia-native-smoke.mjs",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:4705:1791912000259481500",
-        "size_bytes": 4705,
-        "mtime_ns": 1791912000259481500
+        "fingerprint": "stat:4754:1792437281388409900",
+        "size_bytes": 4754,
+        "mtime_ns": 1792437281388409900
       }
     },
     {
@@ -756,17 +991,17 @@
       "generation": null,
       "derived_from": [],
       "verification": {
-        "status": "unread",
-        "evidence": null,
-        "fingerprint": "stat:8447:1791915168386316900"
+        "status": "stale",
+        "evidence": "Existing file in main checkout 822ca8ed; metadata refreshed after clone, contents not reviewed in this task.",
+        "fingerprint": "stat:8585:1792437281388996500"
       },
       "child_index": null,
       "path": "window-capture-contract.ps1",
       "kind": "file",
       "metadata": {
-        "fingerprint": "stat:8447:1791915168386316900",
-        "size_bytes": 8447,
-        "mtime_ns": 1791915168386316900
+        "fingerprint": "stat:8585:1792437281388996500",
+        "size_bytes": 8585,
+        "mtime_ns": 1792437281388996500
       }
     }
   ]

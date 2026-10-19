@@ -30,7 +30,7 @@ export function normalizeSettings(input = {}) {
   const value = { ...DEFAULT_SETTINGS, ...Object.fromEntries(Object.entries(input).map(([key,value])=>[key,typeof value?.get === 'function' ? value.get() : value])) };
   if (!['lite', 'full'].includes(value.mode)) throw new Error('mode must be lite or full');
   value.enabledTools=normalizeEnabledTools(value.enabledTools);
-  if (!['auto','full','lite','custom'].includes(value.toolPreset)) throw new Error('toolPreset must be full, lite or custom');
+  if (!['auto','full','lite','lazy','custom'].includes(value.toolPreset)) throw new Error('toolPreset must be full, lite, lazy or custom');
   if (value.toolPreset==='auto') value.toolPreset=value.enabledTools.length===TOOL_NAMES.length?'full':'custom';
   for (const key of ['indicatorEnabled', 'cursorIndicatorEnabled','remoteIndicatorVisible']) {
     if (typeof value[key] !== 'boolean') throw new Error(`${key} must be boolean`);
@@ -49,5 +49,11 @@ export function normalizeSettings(input = {}) {
 
 export function enabledToolsForSettings(input = {}) {
   const settings=normalizeSettings(input);
-  return [...(settings.toolPreset==='full'?TOOL_NAMES:settings.toolPreset==='lite'?LITE_TOOL_NAMES:settings.enabledTools)];
+  return [...(['full','lazy'].includes(settings.toolPreset)?TOOL_NAMES:settings.toolPreset==='lite'?LITE_TOOL_NAMES:settings.enabledTools)];
+}
+
+// Both permission and startup state matter when deciding whether to reconnect.
+export function toolSelectionKey(input = {}) {
+  const settings=normalizeSettings(input);
+  return JSON.stringify({allowed:enabledToolsForSettings(settings),lazy:settings.toolPreset==='lazy'});
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DEFAULT_SETTINGS, normalizeSettings, enabledToolsForSettings, STOP_SHORTCUT_PATTERN, TOOL_NAMES } from './settings.mjs';
+import { DEFAULT_SETTINGS, normalizeSettings, enabledToolsForSettings, toolSelectionKey, STOP_SHORTCUT_PATTERN, TOOL_NAMES } from './settings.mjs';
 import { atomicJson } from './takeover.mjs';
 import { installActivity } from './activity.mjs';
 
@@ -16,7 +16,7 @@ export function createLiveReference(value){
 }
 const fields = {
   mode: z.union([z.const('lite'),z.const('full')]).default('full').description('旧版工具模式 / Legacy tool mode'),
-  toolPreset: z.union(['auto','full','lite','custom'].map(value=>z.const(value))).default('auto').description('工具加载方案 / Tool preset'),
+  toolPreset: z.union(['auto','full','lite','lazy','custom'].map(value=>z.const(value))).default('auto').description('工具加载方案 / Tool preset'),
   enabledTools: z.array(z.union(TOOL_NAMES.map(name=>z.const(name)))).max(24).default([...TOOL_NAMES]).description('启用的工具 / Enabled tools'),
   indicatorEnabled: z.boolean().default(true).description('接管提示 / Takeover indicator'),
   cursorIndicatorEnabled: z.boolean().default(true).description('鼠标指示 / Pointer indicator'),
@@ -52,7 +52,7 @@ export function bridgeConfig(config = {}, runtime = {}) {
   return {
     serverName: 'wincu', transport: 'stdio', command: process.execPath,
     args: [fileURLToPath(new URL('./server.mjs', import.meta.url))],
-    env: { ELECTRON_RUN_AS_NODE: '1', WCU_TOOL_MODE: settings.mode, WCU_ENABLED_TOOLS: JSON.stringify(enabledToolsForSettings(settings)), WCU_SETTINGS_JSON: JSON.stringify(settings),
+    env: { ELECTRON_RUN_AS_NODE: '1', WCU_TOOL_MODE: settings.toolPreset==='lazy'?'lazy':settings.mode, WCU_ENABLED_TOOLS: JSON.stringify(enabledToolsForSettings(settings)), WCU_SETTINGS_JSON: JSON.stringify(settings),
       ...(runtime.configFile ? { WCU_CONFIG_FILE: runtime.configFile, WCU_STATE_FILE: runtime.stateFile } : {}),
       ...(runtime.activityFile ? {WCU_ACTIVITY_FILE:runtime.activityFile}: {}) },
     toolCallTimeoutMs: config.toolCallTimeoutMs ?? 60000,
@@ -77,7 +77,7 @@ export async function apply(ctx, config) {
     const pending = updates.then(async () => {
       if (!connection || stopped) return;
       await connection.await();
-      const nextSelection=JSON.stringify(enabledToolsForSettings(nextSettings));
+      const nextSelection=toolSelectionKey(nextSettings);
       if (stopped || runningSelection === nextSelection) return;
       const deadline = Date.now() + 65000;
       for (;;) {
@@ -119,7 +119,7 @@ export async function apply(ctx, config) {
     settingsContext.effect(() => scope.watch(applySettings));
     if (connection) return applySettings(desired);
   });
-  runningSelection = JSON.stringify(enabledToolsForSettings(desired));
+  runningSelection = toolSelectionKey(desired);
   connection = ctx.plugin(bridge, bridgeConfig({ ...config, ...desired }, runtime));
   await connection;
   await applySettings(desired);

@@ -14,6 +14,8 @@
 
 ## 简体中文
 
+**0.5.0 新增懒启动**：在“设置 → Computer Use”选择“懒启动”，启动只加载 1 项管理工具，桌面工具按需加载，仍允许全部工具。现有默认方案保持“全部”。详见[工具加载](docs/tool-context.md)。
+
 让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 agent 读取并操作真实 Windows 应用：找控件、看截图、识别文字、点击、输入和管理窗口。
 
 **23 项桌面能力 + 1 个工具管理入口 · 明确的控制提示 · 按 Esc 停止当前轮 · 中英文设置**
@@ -118,7 +120,7 @@ dsh plugin --profile desktop add github:Yu-tao-Li/dsh-computer-use-win
 
 | 设置 | 你可以选择什么 |
 |---|---|
-| 工具加载 | **全部 24 项**（默认）、**精简 10 项**，或展开“自定义”逐项／分组选取；支持全选和全部关闭 |
+| 工具加载 | **全部 24 项**（默认）、**精简 10 项**、**懒启动初始 1 项（允许全部）**，或展开“自定义”逐项／分组选取；支持全选和全部关闭 |
 | 屏幕提示 | 开关屏幕边缘与提示条，设置文字、顶部／底部位置及结束后 200–3000 毫秒的隐藏延时 |
 | 鼠标提示 | 相对屏幕提示独立开关，显示鼠标光环和 DSH 标识；通过叠加层显示，保留系统光标主题 |
 | 远程与录屏可见 | 默认开启，支持 UU 虚拟屏幕；随活动显示器、布局和 DPI 变化刷新 |
@@ -248,6 +250,8 @@ MIT 许可。基于 [cgissing/windows-computer-use](https://github.com/cgissing/
 
 ## English
 
+**New in 0.5.0: Lazy startup.** Select Lazy in Settings → Computer Use to start with one management tool and load desktop tools on demand. All tools remain allowed, and All remains the default preset. See [tool loading](docs/tool-context.md).
+
 Give a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) agent access to real Windows apps: find controls, inspect screenshots, read visible text, click, type and manage windows.
 
 **23 desktop tools + 1 management entry · Visible control status · Esc stops the current turn · Chinese and English settings**
@@ -265,7 +269,7 @@ Give a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) agent
    ```
 
 2. Fully quit and restart DSH Desktop, then open **Settings → Computer Use**. The introduction in the plugin list also opens the complete settings page.
-3. All tools are loaded by default. Start a desktop task, or choose Lite or Custom in settings to load fewer tools.
+3. All tools are loaded by default. Start a desktop task, or choose Lite, Lazy or Custom in settings to load fewer tools.
 
 Use the same install command to upgrade, then fully restart Desktop. Check which profile your host actually uses: installing into another profile does not update the active host's plugin.
 
@@ -297,7 +301,7 @@ A standalone MCP client can launch the stdio server:
 }
 ```
 
-Standalone MCP loads all tools by default. Set `WCU_TOOL_MODE=lite` for the Lite set, or provide a JSON array in `WCU_ENABLED_TOOLS`. The settings page, conversation display and turn-wide indicators require DSH. See [tool loading](docs/tool-context.md) for configuration details.
+Standalone MCP loads all tools by default. Set `WCU_TOOL_MODE=lazy` for management-only startup, `WCU_TOOL_MODE=lite` for the Lite set, or provide a JSON array in `WCU_ENABLED_TOOLS`. The settings page, conversation display and turn-wide indicators require DSH. See [tool loading](docs/tool-context.md) for configuration details.
 
 </details>
 
@@ -352,7 +356,7 @@ Open **Settings → Computer Use**, make your choices and click Save changes. Th
 
 | Setting | Your choices |
 |---|---|
-| Tool loading | **All: 24** (default), **Lite: 10**, or an expandable Custom checklist with individual/group selection, select-all and disable-all |
+| Tool loading | **All: 24** (default), **Lite: 10**, **Lazy: 1 at startup with all allowed**, or an expandable Custom checklist with individual/group selection, select-all and disable-all |
 | Screen indicators | Toggle the screen edges/banner; customize text, top/bottom placement and a 200–3000ms delay before hiding after completion |
 | Pointer indicator | Toggle the pointer halo/DSH badge independently of the screen indicator; overlays preserve your Windows cursor theme |
 | Visible in remote sessions and recordings | On by default, including UU virtual displays; refreshes as active monitors, layout and DPI change |

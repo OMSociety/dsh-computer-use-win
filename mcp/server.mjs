@@ -534,19 +534,20 @@ function compactSchema(schema, key) {
   return result;
 }
 const toolMode = process.env.WCU_TOOL_MODE || 'full';
-if (!['lite', 'full'].includes(toolMode)) throw new Error('WCU_TOOL_MODE must be lite or full');
+if (!['lite', 'full', 'lazy'].includes(toolMode)) throw new Error('WCU_TOOL_MODE must be lite, full or lazy');
 const prefix = 'windows_computer_use_';
 const discoveryName = prefix + 'tools';
 const liteNames = ['list_windows', 'find', 'click', 'scroll', 'type_text', 'keypress', 'ocr', 'screenshot', 'wait_for'];
 if (JSON.stringify([...TOOL_NAMES].sort()) !== JSON.stringify([...tools.map(tool=>tool.name.slice(prefix.length)),'tools'].sort())) throw new Error('Tool settings catalogue does not match the MCP tool definitions');
 const configuredSelection = process.env.WCU_ENABLED_TOOLS === undefined ? null : normalizeEnabledTools(JSON.parse(process.env.WCU_ENABLED_TOOLS));
-const selectionMode = configuredSelection === null ? toolMode : configuredSelection.length === TOOL_NAMES.length ? 'full' : 'custom';
+const selectionMode = toolMode === 'lazy' ? 'lazy' : configuredSelection === null ? toolMode : configuredSelection.length === TOOL_NAMES.length ? 'full' : 'custom';
 const allowedTools = new Set((configuredSelection ?? TOOL_NAMES).map(name=>prefix+name));
-const initialNames = configuredSelection ? configuredSelection.map(name=>prefix+name) : [...(toolMode === 'lite' ? liteNames : tools.map(tool => tool.name.slice(prefix.length))).map(name => prefix + name),discoveryName];
+if (toolMode === 'lazy' && !allowedTools.has(discoveryName)) throw new Error('Lazy startup requires tools in WCU_ENABLED_TOOLS');
+const initialNames = toolMode === 'lazy' ? [discoveryName] : configuredSelection ? configuredSelection.map(name=>prefix+name) : [...(toolMode === 'lite' ? liteNames : tools.map(tool => tool.name.slice(prefix.length))).map(name => prefix + name),discoveryName];
 const enabledTools = new Set(initialNames);
 const discoveryTool = {
   name: discoveryName,
-  description: 'List capabilities; describe reads full usage/schema for one tool; enable loads named tools allowed in settings, disable unloads, reset restores startup selection.',
+  description: (toolMode === 'lazy' ? 'Lazy startup: enable tools before desktop use. ' : '') + 'List capabilities; describe reads one full schema; enable/disable accepts names or ["*"] for all allowed desktop tools; reset restores startup selection.',
   inputSchema: { type: 'object', additionalProperties: false, properties: {
     operation: { type: 'string', enum: ['list','describe','enable','disable','reset'], default: 'list' },
     names: { type: 'array', maxItems: 23, items: { type: 'string' } }
@@ -561,7 +562,9 @@ function advertisedTools() {
 }
 function manageTools(args) {
   args = validateArguments(discoveryTool.inputSchema, args);
-  const names = (args.names || []).map(name => name.startsWith(prefix) ? name : prefix + name);
+  const requested = args.names || [];
+  if (requested.includes('*') && (!['enable','disable'].includes(args.operation) || requested.length !== 1)) throw new Error('INVALID_ARGUMENTS: use ["*"] alone with enable or disable');
+  const names = requested[0] === '*' ? tools.filter(tool=>allowedTools.has(tool.name)).map(tool=>tool.name) : [...new Set(requested.map(name => name.startsWith(prefix) ? name : prefix + name))];
   // Resolve every name before mutation, so one typo cannot partially change
   // the client's advertised list. Management is available only if selected.
   const definitions = names.map(name => {
@@ -579,7 +582,7 @@ function manageTools(args) {
     result = definitions[0];
   } else {
     if (args.operation === 'reset' && names.length) throw new Error('INVALID_ARGUMENTS: reset takes no names');
-    if (args.operation !== 'reset' && !names.length) throw new Error('INVALID_ARGUMENTS: enable/disable requires names');
+    if (args.operation !== 'reset' && !requested.length) throw new Error('INVALID_ARGUMENTS: enable/disable requires names');
     if (args.operation === 'enable' && names.some(name=>!allowedTools.has(name))) throw new Error('TOOL_DISABLED_IN_SETTINGS: Change the user-selected tools in Settings > Computer Use before enabling this tool.');
     const before = [...enabledTools].sort().join(',');
     if (args.operation === 'reset') {

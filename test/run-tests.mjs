@@ -14,6 +14,7 @@ if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, `arti
 const suites = [
   ['source-encoding', process.execPath, ['test/source-encoding.mjs']],
   ['tool-context', process.execPath, ['test/tool-context.mjs']],
+  ['lazy-tools', process.execPath, ['test/lazy-tools.mjs']],
   ['client-settings-contract', process.execPath, ['test/client-settings-contract.mjs']],
   ['schema-compatibility',process.execPath,['test/schema-compatibility.mjs']],
   ['takeover-native', process.execPath, ['test/takeover-native.mjs']],

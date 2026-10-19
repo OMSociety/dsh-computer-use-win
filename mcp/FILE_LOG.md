@@ -7,15 +7,18 @@
 - 按需读取
 - 历史查询
 
-索引 revision：1。仅登记直接子项；原文件是当前内容事实来源。
+索引 revision：2。仅登记直接子项；原文件是当前内容事实来源。
 
 ## 当前子项
 
 | 路径 | 类型 | 内容简介 | 何时读取 | 定位点/子索引 | 验证 |
 | --- | --- | --- | --- | --- | --- |
-| [client.js](client.js) | file | 通过宿主浏览器模块注册中英文工具模式卡片；编辑暂存，保存写入设置。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | settings.plugin.item | partial |
-| [dsh-plugin.mjs](dsh-plugin.mjs) | file | DSH 官方 MCP 桥适配器，注册持久化工具模式并串行重载子插件。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | SettingsConfig | partial |
-| [server.mjs](server.mjs) | file | 现有业务文件；本轮未复核完整正文和原始生成过程。 | 需要时打开原文件核实。 |  | unread |
+| [activity.mjs](activity.mjs) | file | Existing file; contents not reviewed in this task. | Read only when relevant to the requested change. |  | unread |
+| [client.js](client.js) | file | Bilingual settings UI with four presets and explicit Lazy startup/permission counts. | Read when investigating version 0.5.0 behavior, tests or packaging. | lazyCount | verified |
+| [dsh-plugin.mjs](dsh-plugin.mjs) | file | Official DSH bridge configuration and live preset reconnect handling. | Read when investigating version 0.5.0 behavior, tests or packaging. | toolSelectionKey | verified |
+| [server.mjs](server.mjs) | file | MCP server with Lazy management-only startup and atomic allowed-tool wildcard batches. | Read when investigating version 0.5.0 behavior, tests or packaging. | const initialNames | verified |
+| [settings.mjs](settings.mjs) | file | Normalize saved presets and permissions; reconnect key distinguishes Lazy startup. | Read when investigating version 0.5.0 behavior, tests or packaging. | toolSelectionKey | verified |
+| [takeover.mjs](takeover.mjs) | file | Existing file; contents not reviewed in this task. | Read only when relevant to the requested change. |  | unread |
 
 ## 按需读取
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-10-20
+
+- 新增懒启动方案：允许全部工具，启动只加载管理入口，按任务启用桌面工具；reset 恢复为管理入口。默认仍为全部，自定义清单保留。 / Add Lazy startup: allow all tools but initially advertise only management; load tools on demand and reset to management only. All remains the default and custom selections are preserved.
+- enable / disable 支持 `names: ["*"]`，一次处理全部已允许的桌面工具，保留管理入口；已有多名称批量调用继续支持，非法混合通配符不产生部分修改。 / Support wildcard batches over allowed desktop tools while preserving management, multi-name batches and atomic validation.
+- 设置重载同时区分启动状态和允许范围，修复全部与懒启动切换时工具范围相同而不刷新的问题；增加中英文设置、宿主持久化与真实 MCP 列表刷新回归。 / Compare both startup state and permissions when reconnecting, with bilingual UI, persisted settings and official MCP bridge refresh coverage.
+- 同口径 `JSON.stringify({tools: list})`：全部 20,243、精简 9,030、懒启动 510 字符；懒启动比全部减少 97.5%。这是工具定义字符数，不是 token 或整段会话用量。 / Serialized tool definitions measure 20,243 / 9,030 / 510 characters for All / Lite / Lazy; Lazy saves 97.5% versus All. These are characters, not tokens or total conversation usage.
+
 ## 0.4.3 — 2026-10-19
 
 - Esc／自定义快捷键仅停止当前轮与排队动作，下一次用户任务自动可用，移除设置中的恢复按钮；桌面调用完成后空闲 30 秒收起提示并释放占用，执行中的动作不计为空闲。 / Scope stops to the current turn, resume automatically on a new user task, remove the settings resume button, and release indicators after 30 idle seconds following a completed desktop call.

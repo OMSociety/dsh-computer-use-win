@@ -100,12 +100,46 @@ try {
   await until(()=>tools.schemas().length===1);
   await settings.update(entry.options.id,{toolPreset:'full',enabledTools:row.value.enabledTools});
   await until(()=>tools.schemas().length===24);
+  await settings.update(entry.options.id,{toolPreset:'lazy'});
+  await until(()=>tools.schemas().length===1&&tools.schemas()[0].name.endsWith('windows_computer_use_tools'));
+  assert.equal(JSON.parse(await readFile(editor.documentPath,'utf8')).toolPreset,'lazy');
+  const manage=async args=>{
+    const result=await tools.execute({callId:'lazy-'+Date.now(),name:'mcp__wincu__windows_computer_use_tools',arguments:args,signal:new AbortController().signal});
+    assert.ok(!result.isError,JSON.stringify(result));return result;
+  };
+  await manage({operation:'enable',names:['wait','health']});
+  await until(()=>tools.schemas().length===3);
+  await manage({operation:'enable',names:['*']});
+  await until(()=>tools.schemas().length===24);
+  // Restart a fresh official bridge from the persisted settings, not runtime state.
+  const restarted=new Context();
+  restarted.provide('systemPrompt',{tools(){return ()=>{}},section(){return ()=>{}},getSectionOrder(){return 0}});
+  const restartedTools=new ToolRuntime(restarted);
+  try{
+    await restarted.plugin(adapter,JSON.parse(await readFile(editor.documentPath,'utf8')));
+    await until(()=>restartedTools.schemas().length===1);
+    assert.ok(restartedTools.schemas()[0].name.endsWith('windows_computer_use_tools'));
+  }finally{await restarted.fiber.dispose();}
+  await manage({operation:'disable',names:['*']});
+  await until(()=>tools.schemas().length===1);
+  await manage({operation:'enable',names:['wait']});
+  await until(()=>tools.schemas().length===2);
+  await manage({operation:'reset'});
+  await until(()=>tools.schemas().length===1);
+  await settings.update(entry.options.id,{toolPreset:'full'});
+  await until(()=>tools.schemas().length===24);
+  await settings.update(entry.options.id,{toolPreset:'lazy'});
+  await until(()=>tools.schemas().length===1);
+  await settings.update(entry.options.id,{toolPreset:'custom',enabledTools:['wait']});
+  await until(()=>tools.schemas().length===1&&tools.schemas()[0].name.endsWith('windows_computer_use_wait'));
+  await settings.update(entry.options.id,{toolPreset:'full'});
+  await until(()=>tools.schemas().length===24);
   await assert.rejects(settings.update(entry.options.id,{toolPreset:'unknown'}));
   assert.equal(fiber.uid,originalFiber,'Tool changes keep the adapter owner while refreshing its bridge');
   await settings.update(entry.options.id,{resumeToken:1,previewToken:1});
   await until(async()=>JSON.parse(await readFile(liveFile,'utf8')).resumeToken===1);
   const report={passed:true,hostVersion:require('@deepseek-ai/dsh/package.json').version,bridgeVersion:require('@deepseek-ai/dsh-mcp-client/package.json').version,
-    namespace:entry.options.id,volatileSettings:true,liveDisplayConfig:true,toolSelectionReload:[24,2,0,24],presetReload:[1,10,24,1,24],customSelectionPreserved:true,allToolsDefault:true,toolSelectionPersistence:true,invalidToolRejected:true,
+    namespace:entry.options.id,volatileSettings:true,liveDisplayConfig:true,toolSelectionReload:[24,2,0,24],presetReload:[1,10,24,1,24,1,24,1,1,24],lazyPresetPersistence:true,lazyWorkerRestart:true,lazyDynamicRegistry:[1,3,24,1,2,1],customSelectionPreserved:true,allToolsDefault:true,toolSelectionPersistence:true,invalidToolRejected:true,
     remoteVisibilityPersistence:true,remoteVisibilityLiveConfig:true,previewAndResumeSignals:true,cursorIndicatorPersistence:true,cursorIndicatorLiveConfig:true,shortcutPersistence:true,shortcutValidation:true,shortcutClear:true,lockedConfigWriteRetried:true,existingUserProfilesModified:false,physicalInputSent:false,profileFixture:root};
   await writeFile(path.join(root,'results.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 } finally {await ctx.fiber.dispose();process.env.TEMP=previousTemp;process.env.TMP=previousTmp;}

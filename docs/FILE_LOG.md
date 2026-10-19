@@ -7,15 +7,16 @@
 - 按需读取
 - 历史查询
 
-索引 revision：1。仅登记直接子项；原文件是当前内容事实来源。
+索引 revision：2。仅登记直接子项；原文件是当前内容事实来源。
 
 ## 当前子项
 
 | 路径 | 类型 | 内容简介 | 何时读取 | 定位点/子索引 | 验证 |
 | --- | --- | --- | --- | --- | --- |
-| [.npmignore](.npmignore) | file | 排除目录日志与日志锁，避免将开发导航文件发布到 npm。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | FILE_LOG.md | partial |
-| [dev-notes.md](dev-notes.md) | file | 现有业务文件；本轮未复核完整正文和原始生成过程。 | 需要时打开原文件核实。 |  | unread |
-| [tool-context.md](tool-context.md) | file | 精简／全能模式、宿主设置路径、保存与按需工具加载说明。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | 工具模式 | partial |
+| [.npmignore](.npmignore) | file | 排除目录日志与日志锁，避免将开发导航文件发布到 npm。 | 需要该入口的行为、配置或回归细节时，打开原文件核实。 | FILE_LOG.md | stale |
+| [computer-use-settings.md](computer-use-settings.md) | file | Bilingual settings guide including Lazy startup and persisted custom selection. | Read when investigating version 0.5.0 behavior, tests or packaging. | 懒启动 | verified |
+| [dev-notes.md](dev-notes.md) | file | 现有业务文件；本轮未复核完整正文和原始生成过程。 | 需要时打开原文件核实。 |  | stale |
+| [tool-context.md](tool-context.md) | file | Lazy startup, preset permissions, wildcard syntax and measured character counts. | Read when investigating version 0.5.0 behavior, tests or packaging. | ## 懒启动 | verified |
 | [wiki](wiki) | directory | 业务子目录，尚未索引。 | 需要时打开原文件核实。 |  | unread |
 
 ## 按需读取
