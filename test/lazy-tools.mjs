@@ -23,13 +23,18 @@ for(const [preset,selection] of [['lazy',TOOL_NAMES],['lazy',null],['lite',enabl
     assert.equal(init.capabilities.tools.listChanged,true);
     const initial=await list(),allowed=(selection||TOOL_NAMES).filter(n=>n!=='tools');
     // A management-only startup advertises no tool whose name states a desktop
-    // capability, so the server must state it in instructions instead.
-    const managementOnly=initial.length===1&&initial[0].name===prefix+'tools';
-    assert.equal(Object.hasOwn(init,'instructions'),managementOnly,'Instructions appear exactly when the startup set is management only');
+    // capability, so the server must state it in instructions instead. A Custom
+    // checklist that allows no desktop tool is excluded: enabling one is refused,
+    // so claiming the capability would contradict the user's setting.
+    const managementOnly=initial.length===1&&initial[0].name===prefix+'tools'&&allowed.length>0;
+    assert.equal(Object.hasOwn(init,'instructions'),managementOnly,'Instructions appear exactly when the startup set is management only and a desktop tool is allowed');
     if(managementOnly){
       assert.match(init.instructions,/screenshots/i);
       assert.match(init.instructions,/OCR/i);
       assert.match(init.instructions,/enable/);
+    }
+    if(initial.length===1&&initial[0].name===prefix+'tools'&&!allowed.length){
+      assert.doesNotMatch(initial[0].description,/reads and operates real Windows apps/,'A no-desktop-tool selection must not advertise the capability');
     }
     if(preset==='lazy'){
       assert.deepEqual(initial.map(t=>t.name),[prefix+'tools']);

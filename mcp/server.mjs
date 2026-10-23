@@ -545,13 +545,15 @@ const allowedTools = new Set((configuredSelection ?? TOOL_NAMES).map(name=>prefi
 if (toolMode === 'lazy' && !allowedTools.has(discoveryName)) throw new Error('Lazy startup requires tools in WCU_ENABLED_TOOLS');
 const initialNames = toolMode === 'lazy' ? [discoveryName] : configuredSelection ? configuredSelection.map(name=>prefix+name) : [...(toolMode === 'lite' ? liteNames : tools.map(tool => tool.name.slice(prefix.length))).map(name => prefix + name),discoveryName];
 const enabledTools = new Set(initialNames);
-// Models infer what a server can do from the names of its tools. When the
-// startup set is the management entry alone (Lazy, or a Custom set containing
-// only "tools"), no capability name is left to infer from. MCP instructions are
-// the channel for exactly that statement: DSH publishes them as a
-// system-prompt section attributed to this server.
+// Models infer what a server can do from the names of its tools. A Lazy startup
+// advertises the management entry alone, so no capability name is left to infer
+// from. MCP instructions are the channel for that statement: DSH publishes them
+// as a system-prompt section attributed to this server.
 const capabilityInstructions = 'Windows Computer Use reads and operates real Windows applications on this machine: it lists windows, reads UI Automation trees, takes screenshots, recognizes on-screen text with OCR, clicks, types, sends keys and manages windows. The current tool-loading preset starts without those desktop tools, so call windows_computer_use_tools with operation "enable" and the names a task needs (or ["*"] for all allowed tools) before using them; "describe" returns one tool\'s full arguments. Prefer UI Automation elements over screen coordinates, and observe again to verify that an action took effect.';
-const managementOnly = initialNames.length === 1 && initialNames[0] === discoveryName;
+// A Custom checklist that allows no desktop tool must not claim the capability:
+// enabling one is refused, and saying otherwise contradicts the user's setting.
+const managementOnly = initialNames.length === 1 && initialNames[0] === discoveryName
+  && [...allowedTools].some(name => name !== discoveryName);
 const serverInstructions = managementOnly ? capabilityInstructions : undefined;
 const discoveryTool = {
   name: discoveryName,

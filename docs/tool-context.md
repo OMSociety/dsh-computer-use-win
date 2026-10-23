@@ -12,11 +12,11 @@ Choose Lite / All / Lazy / Custom in the outer preset selector; All is the defau
 
 收益来自尚未加载的工具定义；加载后的定义仍占上下文，已有对话记录不会删除。桌面任务需要额外的加载调用。0.5.0 同口径列表为：全部 20,243、精简 9,030、懒启动 510 字符（较全部减少 97.5%），并非 token 数。
 
-启动集合只剩管理入口时（懒启动，或只勾选 `tools` 的自定义清单），服务器在 MCP `initialize` 返回 `instructions`，说明这台电脑能读取与操作真实 Windows 应用，并提示先 `enable` 再用。原因是这一状态下没有任何桌面工具名可供模型推断能力；`instructions` 会被支持它的客户端作为该服务的说明注入模型上下文，DSH 即把它发布成 `mcp:<serverName>` 系统提示词段落。其他启动集合不返回该字段，能力仍由工具名与其说明表达。
+启动集合只剩管理入口、且至少允许一项桌面工具时（懒启动即属此类），服务器在 MCP `initialize` 返回 `instructions`，说明这台电脑能读取与操作真实 Windows 应用，并提示先 `enable` 再用。原因是这一状态下没有任何桌面工具名可供模型推断能力；`instructions` 会被支持它的客户端作为该服务的说明注入模型上下文，DSH 即把它发布成 `mcp:<serverName>` 系统提示词段落。其他启动集合不返回该字段：能力仍由工具名与其说明表达；若自定义清单不允许任何桌面工具，启用会被拒绝，此时不声明该能力。
 
 Savings apply to definitions not yet loaded. Loaded definitions and conversation history still use context, and desktop tasks need a loading call. Version 0.5.0 measures All / Lite / Lazy at 20,243 / 9,030 / 510 serialized characters (97.5% less for Lazy than All), not tokens.
 
-When the startup set is the management entry alone (Lazy startup, or a Custom checklist holding only `tools`), the server returns MCP `initialize` `instructions` stating that this machine's Windows applications can be read and operated, and that tools must be enabled first. In that state no desktop tool name remains for a model to infer capability from. Clients that surface server instructions add them as text attributed to this server; DSH publishes them as the `mcp:<serverName>` system-prompt section. Other startup sets omit the field, where the tool names and their descriptions already carry the capability.
+When the startup set is the management entry alone and at least one desktop tool is allowed — which is what Lazy startup does — the server returns MCP `initialize` `instructions` stating that this machine's Windows applications can be read and operated, and that tools must be enabled first. In that state no desktop tool name remains for a model to infer capability from. Clients that surface server instructions add them as text attributed to this server; DSH publishes them as the `mcp:<serverName>` system-prompt section. Other startup sets omit the field: the tool names and their descriptions already carry the capability, and a Custom checklist that allows no desktop tool is excluded because enabling one is refused.
 
 ## 简体中文
 
