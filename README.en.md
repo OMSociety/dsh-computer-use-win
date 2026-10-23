@@ -16,6 +16,8 @@ Your [**Star ⭐ ↗**](https://github.com/Yu-tao-Li/dsh-computer-use-win) keeps
 
 **New in 0.5.0: Lazy startup.** Select Lazy in Settings → Computer Use to start with one management tool and load desktop tools on demand. All tools remain allowed, and All remains the default preset. See [tool loading](docs/tool-context.md).
 
+When the startup set is the management entry alone (Lazy, or a Custom checklist holding only `tools`), the server returns an MCP handshake note that this machine can be read and operated and that tools must be enabled first. With no desktop tool name advertised at startup, the model still learns the capability exists.
+
 Give a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) agent access to real Windows apps: find controls, inspect screenshots, read visible text, click, type and manage windows.
 
 **23 desktop tools + 1 management entry · Visible control status · Esc stops the current turn · Chinese and English settings**

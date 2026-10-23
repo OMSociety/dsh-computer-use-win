@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1 — 2026-10-24
+
+- 启动集合只剩管理入口时（懒启动，或只勾选 `tools` 的自定义清单），`initialize` 返回 `instructions`，说明该服务能读取并操作真实 Windows 应用，并须先 `enable` 再使用；该条目的说明也改为先讲能力。此前这一状态下没有任何桌面工具名可据以推断能力，模型容易把管理入口当成普通的工具开关。其他启动集合不返回该字段。 / Return MCP `initialize` `instructions` when the startup set is the management entry alone (Lazy, or a Custom checklist holding only `tools`), stating that this server reads and operates real Windows applications and requires enabling tools first; the entry's own description now leads with the capability. Previously no desktop tool name remained in that state from which a model could infer capability. Other startup sets omit the field.
+- 回归覆盖懒启动与仅管理入口的自定义清单两条路径，并断言其他方案不返回该字段。 / Cover both Lazy startup and a management-only Custom checklist, asserting that other presets omit the field.
+
 ## 0.5.0 — 2026-10-20
 
 - 新增懒启动方案：允许全部工具，启动只加载管理入口，按任务启用桌面工具；reset 恢复为管理入口。默认仍为全部，自定义清单保留。 / Add Lazy startup: allow all tools but initially advertise only management; load tools on demand and reset to management only. All remains the default and custom selections are preserved.
